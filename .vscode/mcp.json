@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "mempalace": {
+      "type": "stdio",
+      "command": "/home/adrienpagon/.local/bin/uv",
+      "args": ["run", "--directory", "/home/adrienpagon/git/mempalace-mcp-bridge", "python", "scripts/run_mcp_server.py"]
+    }
+  }
+}
