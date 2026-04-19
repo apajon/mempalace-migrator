@@ -7,9 +7,11 @@ import sys
 from pathlib import Path
 
 import click
+
 from mempalace_migrator.core.context import MigrationContext
 from mempalace_migrator.core.errors import MigratorError
 from mempalace_migrator.core.pipeline import ANALYZE_PIPELINE, run_pipeline
+from mempalace_migrator.reporting.text_renderer import render_text
 
 EXIT_OK = 0
 EXIT_DETECTION_FAILED = 2
@@ -71,39 +73,7 @@ def _emit_report(ctx: MigrationContext, json_output: bool) -> None:
     if not rep:
         return
 
-    click.echo(f"run_id: {rep['run_id']}")
-    click.echo(f"outcome: {rep['outcome']}")
-
-    detection = rep.get("detection")
-    if detection:
-        click.echo(
-            f"detection: {detection['classification']} "
-            f"(confidence={detection['confidence']}, "
-            f"source_version={detection.get('source_version')})"
-        )
-
-    stats = rep.get("extraction_stats")
-    if stats:
-        click.echo(
-            f"extraction_stats: total={stats['total_rows']} "
-            f"parsed={stats['parsed_rows']} failed={stats['failed_rows']} "
-            f"rate={stats['parse_rate']}"
-        )
-
-    summary = rep["anomaly_summary"]
-    click.echo(
-        f"anomalies: total={summary['total']} "
-        f"critical={summary['by_severity']['critical']} "
-        f"high={summary['by_severity']['high']} "
-        f"medium={summary['by_severity']['medium']} "
-        f"low={summary['by_severity']['low']}"
-    )
-    for a in rep["anomalies"]:
-        click.echo(f"  - [{a['severity']}/{a['stage']}/{a['type']}] {a['message']}")
-
-    click.echo(
-        f"explicitly_not_checked: {len(rep['explicitly_not_checked'])} items"
-    )
+    click.echo(render_text(rep))
 
 
 def main() -> None:
@@ -111,4 +81,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    main()
     main()
