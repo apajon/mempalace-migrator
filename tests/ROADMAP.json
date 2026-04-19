@@ -1,0 +1,181 @@
+{
+    "project": "mempalace-migrator",
+    "strategy": {
+        "mode": "sequential_with_gates",
+        "principle": "no phase advancement without minimal reliability guarantees"
+    },
+    "milestones": [
+        {
+            "id": "M1",
+            "name": "Detection Reliability",
+            "phases": [
+                4
+            ],
+            "goal": "Produce non-guessing, evidence-based format detection",
+            "success_criteria": [
+                "Detection returns evidence list",
+                "Confidence is explicit",
+                "UNKNOWN format supported",
+                "Contradictions surfaced"
+            ],
+            "failure_modes_to_eliminate": [
+                "Single heuristic detection",
+                "Silent fallback",
+                "Implicit assumptions"
+            ],
+            "exit_gate": "Detection outputs are explainable and never misleading"
+        },
+        {
+            "id": "M2",
+            "name": "Extraction Resilience",
+            "phases": [
+                5
+            ],
+            "goal": "Extract maximum usable data from corrupted inputs",
+            "success_criteria": [
+                "Partial extraction works",
+                "Malformed JSON does not crash",
+                "Corrupted SQLite handled",
+                "Record-level isolation implemented"
+            ],
+            "failure_modes_to_eliminate": [
+                "Global crash",
+                "Data loss without trace",
+                "All-or-nothing extraction"
+            ],
+            "exit_gate": "Extraction never crashes on recoverable errors"
+        },
+        {
+            "id": "M3",
+            "name": "Truth Model (Anomalies)",
+            "phases": [
+                6
+            ],
+            "goal": "Define structured truth reporting system",
+            "success_criteria": [
+                "Anomaly enum defined",
+                "Severity levels enforced",
+                "Location always present",
+                "Evidence attached"
+            ],
+            "failure_modes_to_eliminate": [
+                "Free-form logs",
+                "Hidden errors",
+                "Ambiguous warnings"
+            ],
+            "exit_gate": "All inconsistencies are structurally represented"
+        },
+        {
+            "id": "M4",
+            "name": "Full Transparency (Reporting)",
+            "phases": [
+                7
+            ],
+            "goal": "Expose complete system state to the user",
+            "success_criteria": [
+                "Global stats available",
+                "Anomalies aggregated",
+                "Confidence summary provided",
+                "Machine-readable output exists"
+            ],
+            "failure_modes_to_eliminate": [
+                "Opaque execution",
+                "Missing error visibility",
+                "Unusable reports"
+            ],
+            "exit_gate": "User can fully understand what happened"
+        },
+        {
+            "id": "M5",
+            "name": "Safe Interpretation (Validation)",
+            "phases": [
+                8
+            ],
+            "goal": "Avoid false correctness claims",
+            "success_criteria": [
+                "Structural validation separated",
+                "Consistency checks implemented",
+                "Heuristic checks explicit",
+                "Confidence-based outputs"
+            ],
+            "failure_modes_to_eliminate": [
+                "Binary valid/invalid",
+                "False correctness claims",
+                "Hidden uncertainty"
+            ],
+            "exit_gate": "Validation never implies correctness"
+        },
+        {
+            "id": "M6",
+            "name": "User Access (CLI)",
+            "phases": [
+                9
+            ],
+            "goal": "Make the tool usable externally",
+            "success_criteria": [
+                "Simple input interface",
+                "Readable output",
+                "Execution modes supported"
+            ],
+            "exit_gate": "User can run end-to-end pipeline"
+        },
+        {
+            "id": "M7",
+            "name": "System Destruction (Adversarial Testing)",
+            "phases": [
+                10
+            ],
+            "goal": "Break the system to reveal hidden flaws",
+            "success_criteria": [
+                "Corrupted inputs tested",
+                "Mixed formats tested",
+                "Edge cases covered",
+                "Failures are explicit"
+            ],
+            "failure_modes_to_eliminate": [
+                "Silent corruption",
+                "False success",
+                "Unreported failures"
+            ],
+            "exit_gate": "System fails loudly and clearly"
+        },
+        {
+            "id": "M8",
+            "name": "Production Credibility (Hardening)",
+            "phases": [
+                11
+            ],
+            "goal": "Stabilize system behavior",
+            "success_criteria": [
+                "Logs clean and structured",
+                "Performance acceptable",
+                "Memory usage controlled",
+                "No random crashes"
+            ],
+            "exit_gate": "System is stable under stress"
+        }
+    ],
+    "execution_order": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6",
+        "M7",
+        "M8"
+    ],
+    "current_position": {
+        "milestone": "M1_M2",
+        "description": "Detection and Extraction are being hardened",
+        "risk_level": "extreme",
+        "reason": "All downstream phases depend on these foundations"
+    },
+    "rules": [
+        "Do not skip milestones",
+        "Do not parallelize critical phases early",
+        "Do not optimize before correctness",
+        "Always prefer explicit over implicit behavior",
+        "Surface uncertainty at every stage"
+    ]
+}
