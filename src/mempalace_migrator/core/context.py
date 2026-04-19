@@ -112,6 +112,9 @@ class AnomalyType(str, Enum):
     # --- Stub stages ---
     NOT_IMPLEMENTED = "not_implemented"
 
+    # --- Reporting meta ---
+    REPORT_INCONSISTENT_FAILURE = "report_inconsistent_failure"
+
 
 def _coerce_type(value: "AnomalyType | str") -> AnomalyType:
     if isinstance(value, AnomalyType):
