@@ -166,18 +166,20 @@
         "M8"
     ],
     "current_position": {
-        "milestone": "M3_done_M4_next",
-        "description": "Truth Model (M3) exit gate satisfied. Reporting (M4) is the next milestone.",
+        "milestone": "M4_done_M5_next",
+        "description": "Reporting (M4) exit gate satisfied. Validation (M5) is the next milestone.",
         "risk_level": "medium",
-        "reason": "Foundation milestones (M1 detection, M2 extraction, M3 truth model) are now complete: detection is evidence-based and surfaces contradictions; extraction is record-isolated and never crashes on recoverable errors; every inconsistency leaves the system as a structurally-typed Anomaly (AnomalyType + Severity enums, mandatory AnomalyLocation, mandatory non-empty evidence tuple). 81 tests pass. Remaining risk concentrates on M4-M8: reporting transparency, validation honesty, CLI, adversarial coverage, and hardening.",
+        "reason": "M4 exit gate conditions met: global stats available (extraction_stats + per-stage execution status); anomalies aggregated by severity, type, and stage with top_severity field; confidence_summary exposes detection band, extraction parse-rate band, and overall_band via explicit weakest-band rule; machine-readable JSON output with schema_version=3 and pinned REPORT_TOP_LEVEL_KEYS; human-readable render_text() extracted into reporting/ (CLI no longer contains rendering logic); consistency invariant self-records REPORT_INCONSISTENT_FAILURE when outcome=failure lacks a matching CRITICAL anomaly. 123 tests pass. Remaining risk concentrates on M5-M8: validation honesty, CLI, adversarial coverage, hardening.",
         "completed_milestones": [
             "M1",
             "M2",
-            "M3"
+            "M3",
+            "M4"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
-            "Legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch (still produces structurally-valid Anomalies)."
+            "Legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch (still produces structurally-valid Anomalies).",
+            "transformation/reconstruction/validation report sections remain null (stubs); stages section correctly marks them skipped or not_run."
         ]
     },
     "rules": [

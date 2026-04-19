@@ -230,7 +230,7 @@
         {
             "id": 7,
             "name": "Reporting",
-            "status": "todo",
+            "status": "done",
             "priority": "high",
             "description": "Expose full system state and anomalies",
             "depends_on": [
@@ -240,27 +240,32 @@
                 {
                     "id": "7.1",
                     "label": "Global stats",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "extraction_stats (total/parsed/failed/rate) + stages section (executed|aborted|skipped|not_run per stage) in build_report()."
                 },
                 {
                     "id": "7.2",
                     "label": "Anomaly aggregation",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "anomaly_summary extended with by_stage, top_severity (highest observed severity). by_type already existed. Derived from final anomaly_dicts list so consistency-invariant meta-anomaly is included."
                 },
                 {
                     "id": "7.3",
                     "label": "Confidence summary",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "confidence_summary section: detection.band from DetectionResult.confidence_band, extraction.band from parse_rate thresholds, overall_band = weakest_band(detection, extraction). UNKNOWN when any signal is absent. Rule is explicit and documented."
                 },
                 {
                     "id": "7.4",
                     "label": "Human-readable summary",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "reporting/text_renderer.py: pure render_text(report) function. CLI delegates entirely; no rendering logic in cli/."
                 },
                 {
                     "id": "7.5",
                     "label": "Structured JSON output",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "schema_version=3. REPORT_TOP_LEVEL_KEYS tuple pins the contract. All sections are JSON-safe (tested by test_report_is_json_safe_strict without default=)."
                 }
             ]
         },
@@ -402,9 +407,9 @@
     ],
     "current_focus": {
         "phase_ids": [
-            7
+            8
         ],
-        "label": "Reporting (M4)",
-        "reason": "M3 (Anomaly Model) exit gate satisfied: AnomalyType + Severity enums enforced, AnomalyLocation always present (non-empty stage), AnomalyEvidence required (>=1 entry), all extraction and pipeline call sites migrated to structured shape, anomalies are JSON-serialisable via to_dict(). 81 tests pass (66 prior + 15 new truth-model tests). Known caveats: (a) detection still uses its own pre-M3 Evidence/Contradiction model (already structurally represented, not duplicated into ctx.anomalies); (b) the legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch and could be removed in a follow-up. Next: aggregate anomalies + stats into a transparent report (phase 7)."
+        "label": "Validation (M5)",
+        "reason": "M4 (Reporting) exit gate satisfied: global stats (extraction_stats + stages section), anomaly aggregation (by_severity + by_type + by_stage + top_severity), confidence_summary with explicit weakest-band rule, human-readable render_text() in reporting/ (CLI no longer contains rendering logic), structured JSON output with schema_version=3 and REPORT_TOP_LEVEL_KEYS contract, consistency invariant (REPORT_INCONSISTENT_FAILURE injected into report when outcome=failure lacks a matching CRITICAL anomaly). 123 tests pass (81 prior + 28 new M4 reporting tests + 14 new text-renderer tests). Known caveats: transformation/reconstruction/validation sections remain null (stubs); stages section correctly marks them as skipped or not_run. Next: implement non-misleading validation (phase 8) — structural checks, internal consistency, heuristic plausibility, confidence-based output without correctness claims."
     }
 }
