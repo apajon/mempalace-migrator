@@ -28,8 +28,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from mempalace_migrator.core.context import MigrationContext
+from mempalace_migrator.core.context import (
+    AnomalyEvidence,
+    AnomalyLocation,
+    AnomalyType,
+    MigrationContext,
+    Severity,
+)
 from mempalace_migrator.core.errors import ExtractionError
+
+_STAGE = "extract"
 
 CHROMA_SQLITE_FILENAME = "chroma.sqlite3"
 WAL_SUFFIX = "-wal"
@@ -133,15 +141,21 @@ def extract(palace_path: Path, ctx: MigrationContext) -> ExtractionResult:
     if (len(drawers) + len(failed)) != embedding_row_count:
         # Should not happen: every embeddings row is iterated exactly once.
         ctx.add_anomaly(
-            type="extraction_arithmetic_mismatch",
-            severity="high",
-            stage="extract",
+            type=AnomalyType.EXTRACTION_ARITHMETIC_MISMATCH,
+            severity=Severity.HIGH,
             message="parsed + failed != total sqlite rows",
-            context={
-                "parsed": len(drawers),
-                "failed": len(failed),
-                "total": embedding_row_count,
-            },
+            location=AnomalyLocation(stage=_STAGE, source="embeddings", path=str(db_path)),
+            evidence=[
+                AnomalyEvidence(
+                    kind="count",
+                    detail=f"parsed={len(drawers)} failed={len(failed)} total={embedding_row_count}",
+                    data={
+                        "parsed": len(drawers),
+                        "failed": len(failed),
+                        "total": embedding_row_count,
+                    },
+                ),
+            ],
         )
 
     return ExtractionResult(
@@ -295,11 +309,20 @@ def _read_drawers_resilient(
 
     if duplicate_ids:
         ctx.add_anomaly(
-            type="duplicate_embedding_ids",
-            severity="high",
-            stage="extract",
+            type=AnomalyType.DUPLICATE_EMBEDDING_IDS,
+            severity=Severity.HIGH,
             message=f"{len(duplicate_ids)} embedding_id values appear more than once",
-            context={"sample": sorted(duplicate_ids)[:20]},
+            location=AnomalyLocation(stage=_STAGE, source="embeddings"),
+            evidence=[
+                AnomalyEvidence(
+                    kind="sample",
+                    detail=f"{len(duplicate_ids)} duplicated embedding_id values",
+                    data={
+                        "sample": sorted(duplicate_ids)[:20],
+                        "count": len(duplicate_ids),
+                    },
+                ),
+            ],
         )
 
     try:
@@ -319,15 +342,21 @@ def _read_drawers_resilient(
         except sqlite3.DatabaseError as exc:
             # Mid-scan page corruption: stop iteration, return partial results.
             ctx.add_anomaly(
-                type="embeddings_scan_aborted",
-                severity="high",
-                stage="extract",
+                type=AnomalyType.EMBEDDINGS_SCAN_ABORTED,
+                severity=Severity.HIGH,
                 message="sqlite error during row scan; partial extraction returned",
-                context={
-                    "error": repr(exc),
-                    "parsed_so_far": len(drawers),
-                    "failed_so_far": len(failed),
-                },
+                location=AnomalyLocation(stage=_STAGE, source="embeddings"),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="sqlite_error",
+                        detail=repr(exc),
+                        data={
+                            "error": repr(exc),
+                            "parsed_so_far": len(drawers),
+                            "failed_so_far": len(failed),
+                        },
+                    ),
+                ],
             )
             break
 
@@ -345,11 +374,19 @@ def _read_drawers_resilient(
                 )
             )
             ctx.add_anomaly(
-                type="blank_embedding_id",
-                severity="high",
-                stage="extract",
+                type=AnomalyType.BLANK_EMBEDDING_ID,
+                severity=Severity.HIGH,
                 message=f"row pk={emb_pk} has blank/NULL id; excluded",
-                context={"embedding_pk": emb_pk},
+                location=AnomalyLocation(
+                    stage=_STAGE, source="embeddings", record_pk=emb_pk
+                ),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="observation",
+                        detail="embedding_id is NULL or blank",
+                        data={"embedding_pk": emb_pk},
+                    ),
+                ],
             )
             continue
 
@@ -364,11 +401,25 @@ def _read_drawers_resilient(
                 )
             )
             ctx.add_anomaly(
-                type="control_chars_in_id",
-                severity="high",
-                stage="extract",
+                type=AnomalyType.CONTROL_CHARS_IN_ID,
+                severity=Severity.HIGH,
                 message=f"row pk={emb_pk}: id contains control chars; excluded",
-                context={"embedding_pk": emb_pk, "id_repr": repr(drawer_id)[:120]},
+                location=AnomalyLocation(
+                    stage=_STAGE,
+                    source="embeddings",
+                    identifier=drawer_id,
+                    record_pk=emb_pk,
+                ),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="value",
+                        detail="control characters present in embedding_id",
+                        data={
+                            "embedding_pk": emb_pk,
+                            "id_repr": repr(drawer_id)[:120],
+                        },
+                    ),
+                ],
             )
             continue
 
@@ -405,11 +456,26 @@ def _read_drawers_resilient(
                 )
             )
             ctx.add_anomaly(
-                type="metadata_query_failed",
-                severity="high",
-                stage="extract",
+                type=AnomalyType.METADATA_QUERY_FAILED,
+                severity=Severity.HIGH,
                 message=f"row pk={emb_pk}: sqlite error on metadata read; excluded",
-                context={"embedding_pk": emb_pk, "embedding_id": drawer_id, "error": repr(exc)},
+                location=AnomalyLocation(
+                    stage=_STAGE,
+                    source="embedding_metadata",
+                    identifier=drawer_id,
+                    record_pk=emb_pk,
+                ),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="sqlite_error",
+                        detail=repr(exc),
+                        data={
+                            "embedding_pk": emb_pk,
+                            "embedding_id": drawer_id,
+                            "error": repr(exc),
+                        },
+                    ),
+                ],
             )
             continue
 
@@ -423,11 +489,22 @@ def _read_drawers_resilient(
                 )
             )
             ctx.add_anomaly(
-                type="orphan_embedding",
-                severity="high",
-                stage="extract",
+                type=AnomalyType.ORPHAN_EMBEDDING,
+                severity=Severity.HIGH,
                 message=f"row pk={emb_pk} id={drawer_id!r}: orphan; excluded",
-                context={"embedding_pk": emb_pk, "embedding_id": drawer_id},
+                location=AnomalyLocation(
+                    stage=_STAGE,
+                    source="embedding_metadata",
+                    identifier=drawer_id,
+                    record_pk=emb_pk,
+                ),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="observation",
+                        detail="no embedding_metadata rows for this embedding",
+                        data={"embedding_pk": emb_pk, "embedding_id": drawer_id},
+                    ),
+                ],
             )
             continue
 
@@ -449,11 +526,22 @@ def _read_drawers_resilient(
                         message="chroma:document has NULL string_value",
                     )
                     ctx.add_anomaly(
-                        type="document_string_value_null",
-                        severity="high",
-                        stage="extract",
+                        type=AnomalyType.DOCUMENT_STRING_VALUE_NULL,
+                        severity=Severity.HIGH,
                         message=f"row id={drawer_id!r}: NULL document; excluded",
-                        context={"embedding_id": drawer_id},
+                        location=AnomalyLocation(
+                            stage=_STAGE,
+                            source="embedding_metadata",
+                            identifier=drawer_id,
+                            record_pk=emb_pk,
+                        ),
+                        evidence=[
+                            AnomalyEvidence(
+                                kind="value",
+                                detail="chroma:document.string_value is NULL",
+                                data={"embedding_id": drawer_id},
+                            ),
+                        ],
                     )
                     row_failed = True
                     break
@@ -475,11 +563,22 @@ def _read_drawers_resilient(
                     context={"key": key},
                 )
                 ctx.add_anomaly(
-                    type="metadata_all_null",
-                    severity="high",
-                    stage="extract",
+                    type=AnomalyType.METADATA_ALL_NULL,
+                    severity=Severity.HIGH,
                     message=f"row id={drawer_id!r}: key {key!r} fully NULL; excluded",
-                    context={"embedding_id": drawer_id, "key": key},
+                    location=AnomalyLocation(
+                        stage=_STAGE,
+                        source="embedding_metadata",
+                        identifier=drawer_id,
+                        record_pk=emb_pk,
+                    ),
+                    evidence=[
+                        AnomalyEvidence(
+                            kind="value",
+                            detail=f"all typed columns NULL for key {key!r}",
+                            data={"embedding_id": drawer_id, "key": key},
+                        ),
+                    ],
                 )
                 row_failed = True
                 break
@@ -499,11 +598,22 @@ def _read_drawers_resilient(
                 )
             )
             ctx.add_anomaly(
-                type="document_missing",
-                severity="high",
-                stage="extract",
+                type=AnomalyType.DOCUMENT_MISSING,
+                severity=Severity.HIGH,
                 message=f"row id={drawer_id!r}: no document; excluded",
-                context={"embedding_id": drawer_id},
+                location=AnomalyLocation(
+                    stage=_STAGE,
+                    source="embedding_metadata",
+                    identifier=drawer_id,
+                    record_pk=emb_pk,
+                ),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="observation",
+                        detail="no chroma:document entry present",
+                        data={"embedding_id": drawer_id},
+                    ),
+                ],
             )
             continue
 
@@ -517,11 +627,22 @@ def _read_drawers_resilient(
                 )
             )
             ctx.add_anomaly(
-                type="document_multiple",
-                severity="high",
-                stage="extract",
+                type=AnomalyType.DOCUMENT_MULTIPLE,
+                severity=Severity.HIGH,
                 message=f"row id={drawer_id!r}: {len(doc_values)} docs; excluded",
-                context={"embedding_id": drawer_id, "count": len(doc_values)},
+                location=AnomalyLocation(
+                    stage=_STAGE,
+                    source="embedding_metadata",
+                    identifier=drawer_id,
+                    record_pk=emb_pk,
+                ),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="count",
+                        detail=f"{len(doc_values)} chroma:document entries for this row",
+                        data={"embedding_id": drawer_id, "count": len(doc_values)},
+                    ),
+                ],
             )
             continue
 
@@ -529,11 +650,22 @@ def _read_drawers_resilient(
         dup_keys = [k for k, c in seen_user_keys.items() if c > 1]
         if dup_keys:
             ctx.add_anomaly(
-                type="duplicate_metadata_keys",
-                severity="medium",
-                stage="extract",
+                type=AnomalyType.DUPLICATE_METADATA_KEYS,
+                severity=Severity.MEDIUM,
                 message=f"row id={drawer_id!r}: duplicate metadata keys; last value kept",
-                context={"embedding_id": drawer_id, "keys": dup_keys},
+                location=AnomalyLocation(
+                    stage=_STAGE,
+                    source="embedding_metadata",
+                    identifier=drawer_id,
+                    record_pk=emb_pk,
+                ),
+                evidence=[
+                    AnomalyEvidence(
+                        kind="sample",
+                        detail="duplicate user metadata keys; last value wins",
+                        data={"embedding_id": drawer_id, "keys": dup_keys},
+                    ),
+                ],
             )
 
         drawers.append(DrawerRecord(id=drawer_id, document=doc_values[0], metadata=metadata))

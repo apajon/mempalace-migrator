@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from mempalace_migrator.core.context import MigrationContext
+from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
 from mempalace_migrator.core.errors import MigratorError, PipelineAbort
 from mempalace_migrator.detection.format_detector import (
     CHROMA_0_6,
@@ -24,11 +24,25 @@ def step_detect(ctx: MigrationContext) -> None:
 
     if result.classification != CHROMA_0_6:
         ctx.add_anomaly(
-            type="unsupported_source_format",
-            severity="critical",
-            stage="detect",
+            type=AnomalyType.UNSUPPORTED_SOURCE_FORMAT,
+            severity=Severity.CRITICAL,
             message=f"source classification {result.classification!r} is not {CHROMA_0_6!r}",
-            context={"confidence": round(result.confidence, 3)},
+            location=AnomalyLocation(
+                stage="detect",
+                source="detection",
+                path=str(ctx.source_path),
+            ),
+            evidence=[
+                AnomalyEvidence(
+                    kind="detection_result",
+                    detail=(f"classification={result.classification!r} " f"confidence={result.confidence:.3f}"),
+                    data={
+                        "classification": result.classification,
+                        "confidence": round(result.confidence, 3),
+                        "confidence_band": result.confidence_band,
+                    },
+                ),
+            ],
         )
         raise PipelineAbort(
             stage="detect",
@@ -40,15 +54,29 @@ def step_detect(ctx: MigrationContext) -> None:
 
     if result.confidence < MIN_ACCEPT_CONFIDENCE:
         ctx.add_anomaly(
-            type="insufficient_detection_confidence",
-            severity="critical",
-            stage="detect",
+            type=AnomalyType.INSUFFICIENT_DETECTION_CONFIDENCE,
+            severity=Severity.CRITICAL,
             message=f"confidence {result.confidence:.2f} < required {MIN_ACCEPT_CONFIDENCE}",
-            context={
-                "confidence": round(result.confidence, 3),
-                "confidence_band": result.confidence_band,
-                "contradictions": [c.to_dict() for c in result.contradictions],
-            },
+            location=AnomalyLocation(
+                stage="detect",
+                source="detection",
+                path=str(ctx.source_path),
+            ),
+            evidence=[
+                AnomalyEvidence(
+                    kind="confidence",
+                    detail=(
+                        f"observed={result.confidence:.3f} "
+                        f"band={result.confidence_band} "
+                        f"required>={MIN_ACCEPT_CONFIDENCE}"
+                    ),
+                    data={
+                        "confidence": round(result.confidence, 3),
+                        "confidence_band": result.confidence_band,
+                        "contradictions": [c.to_dict() for c in result.contradictions],
+                    },
+                ),
+            ],
         )
         raise PipelineAbort(
             stage="detect",
@@ -63,11 +91,24 @@ def step_detect(ctx: MigrationContext) -> None:
     if not result.is_supported_pair():
         supported = ", ".join(f"{s}->{t}" for s, t in SUPPORTED_VERSION_PAIRS)
         ctx.add_anomaly(
-            type="unsupported_version",
-            severity="critical",
-            stage="detect",
+            type=AnomalyType.UNSUPPORTED_VERSION,
+            severity=Severity.CRITICAL,
             message=f"source version {result.source_version!r} not in supported list",
-            context={"supported_pairs": list(SUPPORTED_VERSION_PAIRS)},
+            location=AnomalyLocation(
+                stage="detect",
+                source="detection",
+                path=str(ctx.source_path),
+            ),
+            evidence=[
+                AnomalyEvidence(
+                    kind="version",
+                    detail=f"source_version={result.source_version!r} supported=({supported})",
+                    data={
+                        "source_version": result.source_version,
+                        "supported_pairs": list(SUPPORTED_VERSION_PAIRS),
+                    },
+                ),
+            ],
         )
         raise PipelineAbort(
             stage="detect",
@@ -82,28 +123,46 @@ def step_extract(ctx: MigrationContext) -> None:
 
 def step_transform(ctx: MigrationContext) -> None:
     ctx.add_anomaly(
-        type="not_implemented",
-        severity="low",
-        stage="transform",
+        type=AnomalyType.NOT_IMPLEMENTED,
+        severity=Severity.LOW,
         message="transformation step is a stub; no transformation performed",
+        location=AnomalyLocation(stage="transform", source="pipeline"),
+        evidence=[
+            AnomalyEvidence(
+                kind="observation",
+                detail="stub stage executed; no work performed",
+            ),
+        ],
     )
 
 
 def step_reconstruct(ctx: MigrationContext) -> None:
     ctx.add_anomaly(
-        type="not_implemented",
-        severity="low",
-        stage="reconstruct",
+        type=AnomalyType.NOT_IMPLEMENTED,
+        severity=Severity.LOW,
         message="reconstruction step is a stub; no target palace created",
+        location=AnomalyLocation(stage="reconstruct", source="pipeline"),
+        evidence=[
+            AnomalyEvidence(
+                kind="observation",
+                detail="stub stage executed; no work performed",
+            ),
+        ],
     )
 
 
 def step_validate(ctx: MigrationContext) -> None:
     ctx.add_anomaly(
-        type="not_implemented",
-        severity="low",
-        stage="validate",
+        type=AnomalyType.NOT_IMPLEMENTED,
+        severity=Severity.LOW,
         message="validation step is a stub; no validation performed",
+        location=AnomalyLocation(stage="validate", source="pipeline"),
+        evidence=[
+            AnomalyEvidence(
+                kind="observation",
+                detail="stub stage executed; no work performed",
+            ),
+        ],
     )
 
 
@@ -127,12 +186,26 @@ def run_pipeline(ctx: MigrationContext, steps: tuple[Step, ...]) -> MigrationCon
             failure = exc
             # Critical anomaly may already be recorded by the step; record
             # a generic one if not.
-            if not any(a.stage == exc.stage and a.severity == "critical" for a in ctx.anomalies):
+            if not any(a.stage == exc.stage and a.severity == Severity.CRITICAL for a in ctx.anomalies):
                 ctx.add_anomaly(
                     type=exc.code,
-                    severity="critical",
-                    stage=exc.stage,
+                    severity=Severity.CRITICAL,
                     message=exc.summary,
+                    location=AnomalyLocation(
+                        stage=exc.stage,
+                        source="pipeline",
+                        path=str(ctx.source_path),
+                    ),
+                    evidence=[
+                        AnomalyEvidence(
+                            kind="exception",
+                            detail=exc.summary,
+                            data={
+                                "code": exc.code,
+                                "details": list(exc.details),
+                            },
+                        ),
+                    ],
                 )
             break
 
