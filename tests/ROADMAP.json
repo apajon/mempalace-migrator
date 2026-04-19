@@ -166,10 +166,19 @@
         "M8"
     ],
     "current_position": {
-        "milestone": "M1_M2",
-        "description": "Detection and Extraction are being hardened",
-        "risk_level": "extreme",
-        "reason": "All downstream phases depend on these foundations"
+        "milestone": "M3_done_M4_next",
+        "description": "Truth Model (M3) exit gate satisfied. Reporting (M4) is the next milestone.",
+        "risk_level": "medium",
+        "reason": "Foundation milestones (M1 detection, M2 extraction, M3 truth model) are now complete: detection is evidence-based and surfaces contradictions; extraction is record-isolated and never crashes on recoverable errors; every inconsistency leaves the system as a structurally-typed Anomaly (AnomalyType + Severity enums, mandatory AnomalyLocation, mandatory non-empty evidence tuple). 81 tests pass. Remaining risk concentrates on M4-M8: reporting transparency, validation honesty, CLI, adversarial coverage, and hardening.",
+        "completed_milestones": [
+            "M1",
+            "M2",
+            "M3"
+        ],
+        "caveats": [
+            "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
+            "Legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch (still produces structurally-valid Anomalies)."
+        ]
     },
     "rules": [
         "Do not skip milestones",

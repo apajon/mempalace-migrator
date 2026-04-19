@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-19",
+    "last_updated": "2026-04-19-m3",
     "phases": [
         {
             "id": 0,
@@ -187,7 +187,7 @@
         {
             "id": 6,
             "name": "Anomaly Model",
-            "status": "todo",
+            "status": "done",
             "priority": "critical",
             "description": "Structured anomaly definition system",
             "depends_on": [
@@ -198,27 +198,32 @@
                 {
                     "id": "6.1",
                     "label": "Define anomaly enum types",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "AnomalyType (str, Enum) defined in core/context.py as a closed registry of every anomaly type the system can emit. Free-form type strings are rejected by add_anomaly via _coerce_type."
                 },
                 {
                     "id": "6.2",
                     "label": "Define severity levels",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "Severity (str, Enum) with LOW/MEDIUM/HIGH/CRITICAL. Invalid severities rejected by _coerce_severity. SEVERITIES tuple kept for stable ordering. Severity.HIGH == 'high' preserved for backward-compat string equality."
                 },
                 {
                     "id": "6.3",
                     "label": "Define location schema",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "AnomalyLocation dataclass with required non-empty stage and optional source/identifier/record_pk/path/extra. Anomaly.stage delegates to location.stage."
                 },
                 {
                     "id": "6.4",
                     "label": "Attach evidence model",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "AnomalyEvidence dataclass (kind, detail, data). Anomaly.__post_init__ enforces at least one evidence entry. All extraction and pipeline call sites migrated to attach structured evidence."
                 },
                 {
                     "id": "6.5",
                     "label": "Remove unstructured logs",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "ctx.anomalies is the single channel for inconsistencies. No print/logging calls in extraction or pipeline. Detection still has its own structured Evidence/Contradiction model (predates M3 and remains structurally represented). Legacy add_anomaly(stage=..., context=...) shape still accepted but produces a structurally-valid Anomaly with synthesized AnomalyLocation + AnomalyEvidence(kind='legacy_context')."
                 }
             ]
         },
@@ -397,9 +402,9 @@
     ],
     "current_focus": {
         "phase_ids": [
-            6
+            7
         ],
-        "label": "Anomaly Model (M3)",
-        "reason": "M2 (Extraction) exit gate satisfied: extraction never crashes on recoverable errors. All per-row failures are isolated, structured anomalies emitted, mid-scan DatabaseError caught. 35 tests pass. Next: structured anomaly enum types, severity enforcement, location schema (phase 6)."
+        "label": "Reporting (M4)",
+        "reason": "M3 (Anomaly Model) exit gate satisfied: AnomalyType + Severity enums enforced, AnomalyLocation always present (non-empty stage), AnomalyEvidence required (>=1 entry), all extraction and pipeline call sites migrated to structured shape, anomalies are JSON-serialisable via to_dict(). 81 tests pass (66 prior + 15 new truth-model tests). Known caveats: (a) detection still uses its own pre-M3 Evidence/Contradiction model (already structurally represented, not duplicated into ctx.anomalies); (b) the legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch and could be removed in a follow-up. Next: aggregate anomalies + stats into a transparent report (phase 7)."
     }
 }
