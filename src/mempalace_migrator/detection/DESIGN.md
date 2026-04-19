@@ -274,3 +274,198 @@ Each row in §6 is one test. Additional tests:
 
 Detection tests never need a real `MigrationContext`; the function
 signature is `(Path) -> DetectionResult`.
+
+---
+
+## 10. Contradiction policy (refinement)
+
+This section refines §4 (R4) and §5 (reconciliation). It is the
+authoritative description of how manifest evidence and structural
+evidence interact when they disagree. The earlier "manifest wins, cap
+at 0.6" rule is too coarse — it produces high-enough confidence in
+cases where the substrate fundamentally disagrees with the manifest.
+
+### 10.1 Why the previous rule is insufficient
+
+The original rule only fires when both `manifest_class` and
+`structural_class` are non-`unknown` and differ. That ignores three
+real failure modes:
+
+- Manifest says `chroma_0_6` and structure returns `unknown` because the
+  required 0.6 tables are **missing**. The previous logic accepts the
+  manifest's confidence verbatim. The substrate is not a 0.6 palace at
+  all.
+- Manifest says `chroma_0_6` and structure returns `unknown` because
+  the typed-config column (a 1.x signal) is present. Per R3 we still
+  refuse to classify as 1.x, but per R4 we are also not flagging the
+  conflict — the manifest's confidence is preserved unchanged.
+- Manifest says `chroma_0_6` and structure returns `chroma_0_6` but
+  with **inconsistent row counts** (one of `collections` /
+  `embeddings` is empty, the other is not). Today this is recorded as
+  a structural `inconsistency`, but it does not feed back into the
+  reconciled confidence at all.
+
+In each case the detector reports a confidence the operator should not
+trust. The fix is to grade the disagreement and cap explicitly per
+grade.
+
+### 10.2 Revised policy
+
+The detector classifies the relationship between manifest and structure
+into one of five grades. The grade is computed by a single helper and
+is the only input to the cap.
+
+| Grade           | Trigger                                                                 | Classification kept | Confidence cap | New evidence                                       |
+|-----------------|-------------------------------------------------------------------------|---------------------|----------------|----------------------------------------------------|
+| **AGREE**       | Manifest non-unknown; structure non-unknown; classes match.             | manifest            | no cap         | none added (existing facts already record both)   |
+| **BENIGN**      | Manifest non-unknown; structure `unknown` from a *neutral* cause: missing DB or unreadable DB. | manifest            | `0.85`         | `structure/missing` (already present); no new entry |
+| **SOFT**        | Manifest = 0.6; structure = 0.6 but row counts inconsistent (exactly one of `collections`/`embeddings` is 0). | manifest (`chroma_0_6`) | `0.80`     | `structure/inconsistency` (row counts) — already emitted; reconciliation re-emits with `manifest_vs_structure` tag |
+| **HARD**        | Manifest non-unknown; structure non-unknown; classes differ. **OR** Manifest = 0.6 and typed-config (1.x marker) is present. | manifest            | `0.60`         | `structure/inconsistency` describing the disagreement |
+| **SEVERE**      | Manifest = 0.6 and structure proves the substrate is not 0.6: required 0.6 tables missing, or `chroma.sqlite3` is empty (0 bytes). | **`unknown`**       | `0.40`         | `structure/inconsistency` describing the contradiction |
+
+Notes:
+
+- "Cap" means `confidence = min(confidence, cap)`. The manifest-only
+  confidence is the input.
+- AGREE intentionally leaves manifest confidence intact (e.g. `1.0` when
+  line + version cohere). Structure confirms; it does not amplify.
+- BENIGN exists so a perfectly normal "manifest present, DB happens to
+  be missing right now" case still falls **below** `MIN_ACCEPT_CONFIDENCE`
+  by default (`0.85 < 0.9`). The pipeline refuses; the operator can
+  see why from the evidence list rather than getting a green light on
+  no substrate.
+- SOFT and HARD both keep classification `chroma_0_6` and produce a
+  confidence below the gate. The pipeline will refuse them. The
+  difference is documentary: SOFT means "the palace is 0.6-shaped but
+  oddly populated"; HARD means "the manifest and the schema disagree
+  about which version this is".
+- SEVERE is the only grade that **flips classification to `unknown`**.
+  When the substrate disproves the manifest (no 0.6 tables, or no DB
+  contents at all), the manifest is treated as untrustworthy. The
+  resulting confidence (`0.40`) is well below the gate and the
+  classification is no longer a positive identification.
+
+### 10.3 R3 is unchanged
+
+The typed-config column observed without a manifest still yields
+`unknown` with `confidence = 0.30` (§5). The new grading only changes
+behaviour when a manifest is present: with a 0.6 manifest plus a
+typed-config column, the result is now HARD — classification stays
+`chroma_0_6`, confidence is capped at `0.60`, and an
+`inconsistency` evidence entry is emitted. We never promote to
+`chroma_1_x` from structure. This is a tightening of R4, not a
+relaxation of R3.
+
+### 10.4 Updated confidence rules (delta vs §5)
+
+Reconciliation in `detect_palace_format` becomes:
+
+1. Compute `manifest_class`, `manifest_conf`, `manifest_version` from
+   the manifest helper.
+2. Compute `structural_class`, `structural_conf`, plus a small
+   `structural_signals` record from the structure helper.
+   `structural_signals` exposes the booleans the grading needs:
+   `db_present`, `db_empty`, `required_tables_present`,
+   `typed_marker_present`, `row_counts_inconsistent`.
+3. If `manifest_class == UNKNOWN`, return `(structural_class,
+   structural_conf, None, evidence)` exactly as today. The manifest
+   contributed nothing; structure stands on its own (and per R1/R3 can
+   never reach the gate by itself).
+4. Otherwise, classify the grade per §10.2 and apply the cap.
+
+The structural-only and manifest-only tables in §5 are unchanged. Only
+the reconciliation step is changed. There is one new constant per cap
+(`CAP_BENIGN = 0.85`, `CAP_SOFT = 0.80`, `CAP_HARD = 0.60`,
+`CAP_SEVERE = 0.40`) defined alongside `MIN_ACCEPT_CONFIDENCE`.
+
+### 10.5 Concrete examples
+
+Each example is one observable result and one test.
+
+1. **Manifest 0.6.3 + line agrees + DB has 0.6 tables and rows** → AGREE
+   → `chroma_0_6`, confidence `1.00`, `source_version="0.6.3"`. No
+   inconsistency.
+
+2. **Manifest 0.6.3 + DB missing** → BENIGN → `chroma_0_6`, confidence
+   `0.85`, `source_version="0.6.3"`, evidence includes
+   `structure/missing` for `chroma.sqlite3`. Pipeline refuses
+   (`0.85 < 0.9`).
+
+3. **Manifest 0.6.3 + DB has 0.6 tables, `embeddings` count=0,
+   `collections` count=3** → SOFT → `chroma_0_6`, confidence `0.80`,
+   `source_version="0.6.3"`, evidence includes
+   `structure/inconsistency` (row counts) and a reconciliation
+   `structure/inconsistency` tagged
+   `manifest_vs_structure: row_counts_inconsistent`.
+
+4. **Manifest 0.6.3 + DB has 0.6 tables AND a typed-config column on
+   `collections`** → HARD → `chroma_0_6`, confidence `0.60`,
+   `source_version="0.6.3"`, evidence includes the typed-marker fact
+   and a reconciliation `structure/inconsistency` tagged
+   `manifest_vs_structure: typed_marker_present`. Classification is
+   **not** flipped to `chroma_1_x` (R3).
+
+5. **Manifest says `chromadb-1.x` + DB is unmistakably 0.6** → HARD →
+   `chroma_1_x`, confidence `0.60`, `source_version` from manifest.
+   Classification follows the manifest (R4); the operator sees the
+   contradiction and the pipeline refuses below the gate.
+
+6. **Manifest 0.6.3 + DB present but required 0.6 tables missing** →
+   SEVERE → **`unknown`**, confidence `0.40`,
+   `source_version="0.6.3"` (the field still records what the manifest
+   said, but classification is no longer `chroma_0_6`), evidence
+   includes `structure/missing` (tables) and a reconciliation
+   `structure/inconsistency` tagged
+   `manifest_vs_structure: required_tables_missing`.
+
+7. **Manifest 0.6.3 + `chroma.sqlite3` is 0 bytes** → SEVERE →
+   `unknown`, confidence `0.40`. Same shape as (6); reconciliation
+   tag `manifest_vs_structure: db_empty`.
+
+The pipeline's behaviour is unchanged for AGREE; for every other grade
+the run is refused at the detection gate. The tightening only removes
+false positives — it never creates new accepted cases.
+
+### 10.6 Minimal code changes
+
+Only two functions change. No data model change is required beyond
+adding a tiny structural-signals tuple internal to the detector.
+
+1. `_classify_from_structure` — return a third element alongside
+   `(class, confidence)`: a `StructuralSignals` namedtuple with
+   `db_present: bool`, `db_empty: bool`,
+   `required_tables_present: bool`, `typed_marker_present: bool`,
+   `row_counts_inconsistent: bool`. All fields are derived from
+   information the function already collects; no new SQL is issued.
+
+2. `detect_palace_format` — replace the current reconciliation block
+   with a call to a new private helper `_grade_contradiction(manifest_class,
+   structural_class, structural_signals) -> Grade` and a single
+   `match`/`if` that applies the cap from §10.2 and, for `SEVERE`,
+   sets `classification = UNKNOWN`. The helper appends one
+   `structure/inconsistency` evidence entry per non-AGREE grade with
+   a stable tag (`manifest_vs_structure: <reason>`). The original
+   "manifest wins, cap at 0.6" branch is deleted.
+
+3. New module-level constants:
+   `CAP_BENIGN = 0.85`, `CAP_SOFT = 0.80`, `CAP_HARD = 0.60`,
+   `CAP_SEVERE = 0.40`, plus a `Grade` enum with members
+   `AGREE`, `BENIGN`, `SOFT`, `HARD`, `SEVERE`. The enum is private
+   (`_Grade`) — it is not exported. Callers continue to read
+   `classification`, `confidence`, and `evidence` only.
+
+No change to: `Evidence`, `DetectionResult`, `_classify_from_manifest`,
+`SUPPORTED_VERSION_PAIRS`, `MIN_ACCEPT_CONFIDENCE`, the pipeline step,
+the report shape. The grading helper is fully unit-testable in
+isolation: input is two classes and a signals tuple, output is a grade.
+
+### 10.7 Test additions
+
+One test per grade in §10.2 plus one regression test per example in
+§10.5. Plus:
+
+- Removing the manifest from any HARD/SEVERE fixture must yield
+  `unknown` with structural-only confidence (regression on §10.4 step 3).
+- Replacing the manifest with one whose `chromadb_version` is outside
+  `SUPPORTED_VERSION_PAIRS` does not change the grade — gate enforcement
+  remains the pipeline's job (§7).
