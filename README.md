@@ -1,10 +1,11 @@
 # mempalace-migrator
 
-An **experimental** reconstruction tool that attempts to read a MemPalace
-stored under ChromaDB `0.6.x` and rebuild an equivalent palace under
+**Experimental** reconstruction tool. Reads a MemPalace stored under
+ChromaDB `0.6.x` and attempts to rebuild an equivalent palace under
 ChromaDB `1.x`.
 
-This is a research-grade utility. It is not a migration product.
+This is a research-grade utility. Semantic correctness of the output
+is not guaranteed. It is not a migration product.
 
 ---
 
@@ -26,6 +27,11 @@ It works by **reconstruction**, not by in-place migration:
 There is no shared format between the two versions. The tool does not
 upgrade a database; it transcribes what it can read into a new one.
 
+**Current status:** detection, extraction, and structured reporting are
+implemented. Transformation, reconstruction, and validation are present
+as explicit stubs and perform no work. The only useful command at this
+stage is `analyze`.
+
 ---
 
 ## 2. What this project is NOT
@@ -36,6 +42,8 @@ upgrade a database; it transcribes what it can read into a new one.
   source structure and one target version.
 - Not guaranteed to produce a target palace equivalent to the source.
 - Not guaranteed to preserve every record from the source.
+- Not guaranteed to produce semantically correct output, even when the
+  run exits with code `0`.
 - Not guaranteed to terminate successfully on inputs it has not been
   tested against.
 - Not a substitute for taking a backup of the source data.
@@ -52,7 +60,8 @@ Read this section before running the tool.
   even when documents are byte-identical.
 - **Output may be structurally valid but semantically incorrect.** The
   reconstructed palace may load, accept queries, and return results that
-  differ from the source in ways the tool cannot detect.
+  differ from the source in ways the tool cannot detect. Semantic
+  correctness is not guaranteed and cannot be verified by the tool.
 - **Completeness is not guaranteed.** Rows that fail per-row integrity
   checks are excluded from the reconstruction and listed in the report.
   The tool continues; it does not refuse to produce a partial output.
@@ -62,10 +71,10 @@ Read this section before running the tool.
 - **The tool may fail on inputs that other tooling considers valid.**
   Detection requires a manifest with a recognised `chromadb_version`.
   Palaces without one are rejected, even if they are otherwise readable.
-- **Tested coverage is narrow.** Only the version pair listed below has
-  been exercised. Behaviour on other versions, schemas produced by
-  other tooling, or palaces written by patched ChromaDB builds is
-  undefined.
+- **Tested coverage is narrow.** Only the version pair listed in
+  section 5 has been exercised. Behaviour on other versions, schemas
+  produced by other tooling, or palaces written by patched ChromaDB
+  builds is undefined.
 - **Concurrent access to the source is not detected reliably.** The
   tool refuses to run when an uncheckpointed WAL file is present, but
   it cannot detect a concurrent reader-writer outside that signal.
@@ -122,15 +131,16 @@ behaves as it does.
 
 ## 6. Quickstart
 
-> **Back up the source palace before running this tool.** Even though
-> the source is opened read-only, the surrounding workflow (renames,
-> moves, scripted cleanup) is the operator's responsibility.
+> **Warning: back up the source palace before running this tool.**
+> Even though the source is opened read-only, the surrounding workflow
+> (renames, moves, scripted cleanup) is the operator's responsibility.
 >
-> **Do not point the target path at an existing palace** unless you
-> intend to overwrite it. The tool may refuse, but do not rely on this.
+> **Warning: do not point the target path at an existing palace** unless
+> you intend to overwrite it. The tool may refuse, but do not rely on this.
 >
-> **Inspect the report.** A successful exit code is not a correctness
-> claim.
+> **Warning: inspect the report after every run.** A successful exit
+> code is not a correctness claim. Semantic correctness is not
+> guaranteed.
 
 Install:
 
@@ -148,14 +158,14 @@ Analyse a source palace without writing anything:
 
 `analyze` runs detection and extraction only. It does not produce a
 target palace. The reconstruction and validation steps are not yet
-implemented in this codebase and are exposed as explicit stubs.
+implemented and are exposed as explicit stubs.
 
 ---
 
 ## 7. Output and reporting
 
-Each run produces a structured report (printed to stdout, or as JSON
-with `--json-output`). The report contains:
+Each run produces a structured report printed to stdout, or as JSON
+with `--json-output`. The report contains:
 
 - `detection`: classification, numeric confidence, source version,
   evidence list (every fact and inconsistency observed).
@@ -180,11 +190,11 @@ Exit codes:
 
 | Code | Meaning |
 |------|---------|
-| 0    | Pipeline completed without raising a critical error |
-| 2    | Detection failed (unsupported format, version, or insufficient confidence) |
-| 3    | Extraction failed at a critical pre-flight check |
-| 6    | Report could not be built |
-| 10   | Unexpected error (use `--debug` to surface the traceback) |
+| `0`  | Pipeline completed without raising a critical error |
+| `2`  | Detection failed (unsupported format, version, or insufficient confidence) |
+| `3`  | Extraction failed at a critical pre-flight check |
+| `6`  | Report could not be built |
+| `10` | Unexpected error (use `--debug` to surface the traceback) |
 
 ---
 
@@ -195,7 +205,9 @@ This tool is intended for operators who:
 - understand the structural differences between ChromaDB `0.6.x` and
   `1.x`,
 - can read SQLite directly to verify what the tool reports,
-- accept that the output may need to be discarded after inspection,
+- accept that semantic correctness of the output is not guaranteed and
+  that the reconstructed palace may need to be discarded after
+  inspection,
 - do not need a turnkey upgrade path.
 
 If you need a supported migration product, this is not it.
@@ -209,15 +221,3 @@ If you need a supported migration product, this is not it.
   It is the production-oriented project. `mempalace-migrator` exists
   separately so that experimental reconstruction work does not affect
   the bridge's stability or its supported scope.
-
----
-
-## 10. Status
-
-Foundation only. Detection, extraction, structured reporting, and the
-strict-scope CLI are implemented. Transformation, reconstruction, and
-validation are present as explicit stubs and perform no work.
-
-Until the reconstruction layer is implemented, the only useful command
-is `analyze`, which produces a report describing what a reconstruction
-attempt would have to deal with.
