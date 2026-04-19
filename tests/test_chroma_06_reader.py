@@ -204,7 +204,9 @@ def test_no_collection_raises(tmp_path):
     conn = sqlite3.connect(str(db_path))
     conn.execute("CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT)")
     conn.execute("CREATE TABLE embeddings (id INTEGER PRIMARY KEY, embedding_id TEXT)")
-    conn.execute("CREATE TABLE embedding_metadata (id INTEGER, key TEXT, string_value TEXT, int_value INTEGER, float_value REAL, bool_value INTEGER)")
+    conn.execute(
+        "CREATE TABLE embedding_metadata (id INTEGER, key TEXT, string_value TEXT, int_value INTEGER, float_value REAL, bool_value INTEGER)"
+    )
     # No collection row inserted
     conn.commit()
     conn.close()
@@ -217,9 +219,7 @@ def test_no_collection_raises(tmp_path):
 
 def test_multiple_collections_raises(tmp_path):
     _, conn = _make_db(tmp_path)
-    conn.execute(
-        "INSERT INTO collections (id, name) VALUES (2, 'another_collection')"
-    )
+    conn.execute("INSERT INTO collections (id, name) VALUES (2, 'another_collection')")
     conn.commit()
     conn.close()
 
@@ -234,7 +234,9 @@ def test_wrong_collection_name_raises(tmp_path):
     conn = sqlite3.connect(str(db_path))
     conn.execute("CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT)")
     conn.execute("CREATE TABLE embeddings (id INTEGER PRIMARY KEY, collection_id INTEGER, embedding_id TEXT)")
-    conn.execute("CREATE TABLE embedding_metadata (id INTEGER, key TEXT, string_value TEXT, int_value INTEGER, float_value REAL, bool_value INTEGER)")
+    conn.execute(
+        "CREATE TABLE embedding_metadata (id INTEGER, key TEXT, string_value TEXT, int_value INTEGER, float_value REAL, bool_value INTEGER)"
+    )
     conn.execute("INSERT INTO collections (id, name) VALUES (1, 'wrong_name')")
     conn.commit()
     conn.close()
@@ -390,9 +392,7 @@ def test_orphan_embedding_excluded(tmp_path):
     """An embedding row with no embedding_metadata rows is excluded."""
     _, conn = _make_db(tmp_path)
     # Insert embedding row but no metadata rows at all
-    conn.execute(
-        "INSERT INTO embeddings (id, collection_id, embedding_id) VALUES (1, 1, 'orphan-id')"
-    )
+    conn.execute("INSERT INTO embeddings (id, collection_id, embedding_id) VALUES (1, 1, 'orphan-id')")
     conn.commit()
     conn.close()
 
@@ -458,7 +458,7 @@ def test_all_null_metadata_value_excluded(tmp_path):
 def test_good_rows_survive_bad_rows(tmp_path):
     """Partial extraction: one bad row and one good row — good row is returned."""
     _, conn = _make_db(tmp_path)
-    _add_drawer(conn, 1, "", "content-bad")    # blank id — excluded
+    _add_drawer(conn, 1, "", "content-bad")  # blank id — excluded
     _add_drawer(conn, 2, "good-id", "content-good")  # valid
     conn.commit()
     conn.close()
@@ -475,9 +475,9 @@ def test_good_rows_survive_bad_rows(tmp_path):
 def test_all_rows_bad_returns_empty_drawers(tmp_path):
     """When every row fails, extraction does not crash; drawers is empty."""
     _, conn = _make_db(tmp_path)
-    _add_drawer(conn, 1, None, "doc-1")   # NULL id
-    _add_drawer(conn, 2, None, "doc-2")   # NULL id
-    _add_drawer(conn, 3, None, "doc-3")   # NULL id
+    _add_drawer(conn, 1, None, "doc-1")  # NULL id
+    _add_drawer(conn, 2, None, "doc-2")  # NULL id
+    _add_drawer(conn, 3, None, "doc-3")  # NULL id
     conn.commit()
     conn.close()
 
@@ -492,11 +492,11 @@ def test_all_rows_bad_returns_empty_drawers(tmp_path):
 def test_partial_extraction_multiple_failure_types(tmp_path):
     """Several different per-row failure types in one extraction — none crash."""
     _, conn = _make_db(tmp_path)
-    _add_drawer(conn, 1, "good-1", "doc A")               # ok
-    _add_drawer(conn, 2, "", "doc B")                      # blank id
-    _add_drawer(conn, 3, "good-3", "doc C")               # ok
-    _add_drawer(conn, 4, "id-4", None)                    # missing doc
-    _add_drawer(conn, 5, "good-5", "doc E")               # ok
+    _add_drawer(conn, 1, "good-1", "doc A")  # ok
+    _add_drawer(conn, 2, "", "doc B")  # blank id
+    _add_drawer(conn, 3, "good-3", "doc C")  # ok
+    _add_drawer(conn, 4, "id-4", None)  # missing doc
+    _add_drawer(conn, 5, "good-5", "doc E")  # ok
     conn.commit()
     conn.close()
 
@@ -547,9 +547,7 @@ def test_anomaly_emitted_for_duplicate_ids(tmp_path):
 
 def test_anomaly_emitted_for_orphan_embedding(tmp_path):
     _, conn = _make_db(tmp_path)
-    conn.execute(
-        "INSERT INTO embeddings (id, collection_id, embedding_id) VALUES (1, 1, 'orphan')"
-    )
+    conn.execute("INSERT INTO embeddings (id, collection_id, embedding_id) VALUES (1, 1, 'orphan')")
     conn.commit()
     conn.close()
 
@@ -591,12 +589,8 @@ def test_duplicate_metadata_keys_anomaly_medium_row_kept(tmp_path):
     _, conn = _make_db(tmp_path)
     _add_drawer(conn, 1, "id-1", "doc")
     # Insert the same user key twice with different string values
-    conn.execute(
-        "INSERT INTO embedding_metadata (id, key, string_value) VALUES (1, 'tag', 'first')"
-    )
-    conn.execute(
-        "INSERT INTO embedding_metadata (id, key, string_value) VALUES (1, 'tag', 'second')"
-    )
+    conn.execute("INSERT INTO embedding_metadata (id, key, string_value) VALUES (1, 'tag', 'first')")
+    conn.execute("INSERT INTO embedding_metadata (id, key, string_value) VALUES (1, 'tag', 'second')")
     conn.commit()
     conn.close()
 
@@ -651,7 +645,10 @@ def test_metadata_json_like_value_extracted_as_string(tmp_path):
     """A metadata string_value that looks like JSON is returned as-is."""
     _, conn = _make_db(tmp_path)
     _add_drawer(
-        conn, 1, "id-1", "content",
+        conn,
+        1,
+        "id-1",
+        "content",
         metadata={"data": '{"malformed": [1, 2,'},
     )
     conn.commit()
@@ -673,7 +670,7 @@ def test_counts_consistent(tmp_path):
     """parsed_count + failed_count == total_count for every run."""
     _, conn = _make_db(tmp_path)
     _add_drawer(conn, 1, "ok-1", "doc 1")
-    _add_drawer(conn, 2, "", "doc 2")         # blank id
+    _add_drawer(conn, 2, "", "doc 2")  # blank id
     _add_drawer(conn, 3, "ok-3", "doc 3")
     conn.commit()
     conn.close()

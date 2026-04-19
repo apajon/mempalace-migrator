@@ -191,12 +191,7 @@ def _pragma_integrity_check(conn: sqlite3.Connection, db_path: Path) -> None:
 
 def _verify_required_tables(conn: sqlite3.Connection) -> None:
     try:
-        present = {
-            row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
-        }
+        present = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     except sqlite3.DatabaseError as exc:
         raise ExtractionError(
             stage="extract",
@@ -226,18 +221,21 @@ def _verify_single_expected_collection(conn: sqlite3.Connection) -> str:
     names = [row["name"] for row in rows]
     if not names:
         raise ExtractionError(
-            stage="extract", code="no_collection",
+            stage="extract",
+            code="no_collection",
             summary="palace contains no collection",
         )
     if len(names) > 1:
         raise ExtractionError(
-            stage="extract", code="multiple_collections",
+            stage="extract",
+            code="multiple_collections",
             summary=f"palace contains {len(names)} collections; expected exactly 1",
             details=names,
         )
     if names[0] != EXPECTED_COLLECTION_NAME:
         raise ExtractionError(
-            stage="extract", code="unexpected_collection_name",
+            stage="extract",
+            code="unexpected_collection_name",
             summary=f"expected collection {EXPECTED_COLLECTION_NAME!r}, found {names[0]!r}",
         )
     return names[0]
@@ -248,7 +246,8 @@ def _embedding_row_count(conn: sqlite3.Connection) -> int:
         return conn.execute("SELECT COUNT(*) FROM embeddings").fetchone()[0]
     except sqlite3.Error as exc:
         raise ExtractionError(
-            stage="extract", code="embeddings_query_failed",
+            stage="extract",
+            code="embeddings_query_failed",
             summary=f"could not count embeddings: {exc!r}",
         ) from exc
 
@@ -289,7 +288,8 @@ def _read_drawers_resilient(
         # If we can't even compute duplicates, the table is too damaged
         # to read row by row safely.
         raise ExtractionError(
-            stage="extract", code="embeddings_scan_failed",
+            stage="extract",
+            code="embeddings_scan_failed",
             summary=f"cannot scan embeddings for duplicates: {exc!r}",
         ) from exc
 
@@ -303,12 +303,11 @@ def _read_drawers_resilient(
         )
 
     try:
-        cursor = conn.execute(
-            "SELECT id, embedding_id FROM embeddings ORDER BY id"
-        )
+        cursor = conn.execute("SELECT id, embedding_id FROM embeddings ORDER BY id")
     except sqlite3.DatabaseError as exc:
         raise ExtractionError(
-            stage="extract", code="embeddings_iter_failed",
+            stage="extract",
+            code="embeddings_iter_failed",
             summary=f"cannot iterate embeddings: {exc!r}",
         ) from exc
 
@@ -346,7 +345,9 @@ def _read_drawers_resilient(
                 )
             )
             ctx.add_anomaly(
-                type="blank_embedding_id", severity="high", stage="extract",
+                type="blank_embedding_id",
+                severity="high",
+                stage="extract",
                 message=f"row pk={emb_pk} has blank/NULL id; excluded",
                 context={"embedding_pk": emb_pk},
             )
@@ -356,13 +357,16 @@ def _read_drawers_resilient(
         if ID_FORBIDDEN_CHARS_RE.search(drawer_id):
             failed.append(
                 FailedRow(
-                    embedding_pk=emb_pk, embedding_id=drawer_id,
+                    embedding_pk=emb_pk,
+                    embedding_id=drawer_id,
                     reason_type="control_chars_in_id",
                     message="embedding_id contains control characters",
                 )
             )
             ctx.add_anomaly(
-                type="control_chars_in_id", severity="high", stage="extract",
+                type="control_chars_in_id",
+                severity="high",
+                stage="extract",
                 message=f"row pk={emb_pk}: id contains control chars; excluded",
                 context={"embedding_pk": emb_pk, "id_repr": repr(drawer_id)[:120]},
             )
@@ -372,7 +376,8 @@ def _read_drawers_resilient(
         if drawer_id in duplicate_ids:
             failed.append(
                 FailedRow(
-                    embedding_pk=emb_pk, embedding_id=drawer_id,
+                    embedding_pk=emb_pk,
+                    embedding_id=drawer_id,
                     reason_type="duplicate_embedding_id",
                     message="this embedding_id is duplicated; row excluded",
                 )
@@ -393,13 +398,16 @@ def _read_drawers_resilient(
         except sqlite3.DatabaseError as exc:
             failed.append(
                 FailedRow(
-                    embedding_pk=emb_pk, embedding_id=drawer_id,
+                    embedding_pk=emb_pk,
+                    embedding_id=drawer_id,
                     reason_type="metadata_query_failed",
                     message=f"sqlite error reading metadata: {exc!r}",
                 )
             )
             ctx.add_anomaly(
-                type="metadata_query_failed", severity="high", stage="extract",
+                type="metadata_query_failed",
+                severity="high",
+                stage="extract",
                 message=f"row pk={emb_pk}: sqlite error on metadata read; excluded",
                 context={"embedding_pk": emb_pk, "embedding_id": drawer_id, "error": repr(exc)},
             )
@@ -408,13 +416,16 @@ def _read_drawers_resilient(
         if not meta_rows:
             failed.append(
                 FailedRow(
-                    embedding_pk=emb_pk, embedding_id=drawer_id,
+                    embedding_pk=emb_pk,
+                    embedding_id=drawer_id,
                     reason_type="orphan_embedding",
                     message="no embedding_metadata rows for this embedding",
                 )
             )
             ctx.add_anomaly(
-                type="orphan_embedding", severity="high", stage="extract",
+                type="orphan_embedding",
+                severity="high",
+                stage="extract",
                 message=f"row pk={emb_pk} id={drawer_id!r}: orphan; excluded",
                 context={"embedding_pk": emb_pk, "embedding_id": drawer_id},
             )
@@ -432,12 +443,15 @@ def _read_drawers_resilient(
             if key == "chroma:document":
                 if m["string_value"] is None:
                     row_failure = FailedRow(
-                        embedding_pk=emb_pk, embedding_id=drawer_id,
+                        embedding_pk=emb_pk,
+                        embedding_id=drawer_id,
                         reason_type="document_string_value_null",
                         message="chroma:document has NULL string_value",
                     )
                     ctx.add_anomaly(
-                        type="document_string_value_null", severity="high", stage="extract",
+                        type="document_string_value_null",
+                        severity="high",
+                        stage="extract",
                         message=f"row id={drawer_id!r}: NULL document; excluded",
                         context={"embedding_id": drawer_id},
                     )
@@ -454,13 +468,16 @@ def _read_drawers_resilient(
                 metadata[key] = _resolve_metadata_value(m)
             except _MetadataAllNull:
                 row_failure = FailedRow(
-                    embedding_pk=emb_pk, embedding_id=drawer_id,
+                    embedding_pk=emb_pk,
+                    embedding_id=drawer_id,
                     reason_type="metadata_all_null",
                     message=f"metadata key {key!r} has all typed values NULL",
                     context={"key": key},
                 )
                 ctx.add_anomaly(
-                    type="metadata_all_null", severity="high", stage="extract",
+                    type="metadata_all_null",
+                    severity="high",
+                    stage="extract",
                     message=f"row id={drawer_id!r}: key {key!r} fully NULL; excluded",
                     context={"embedding_id": drawer_id, "key": key},
                 )
@@ -475,13 +492,16 @@ def _read_drawers_resilient(
         if len(doc_values) == 0:
             failed.append(
                 FailedRow(
-                    embedding_pk=emb_pk, embedding_id=drawer_id,
+                    embedding_pk=emb_pk,
+                    embedding_id=drawer_id,
                     reason_type="document_missing",
                     message="no chroma:document entry for this row",
                 )
             )
             ctx.add_anomaly(
-                type="document_missing", severity="high", stage="extract",
+                type="document_missing",
+                severity="high",
+                stage="extract",
                 message=f"row id={drawer_id!r}: no document; excluded",
                 context={"embedding_id": drawer_id},
             )
@@ -490,13 +510,16 @@ def _read_drawers_resilient(
         if len(doc_values) > 1:
             failed.append(
                 FailedRow(
-                    embedding_pk=emb_pk, embedding_id=drawer_id,
+                    embedding_pk=emb_pk,
+                    embedding_id=drawer_id,
                     reason_type="document_multiple",
                     message=f"{len(doc_values)} chroma:document entries for this row",
                 )
             )
             ctx.add_anomaly(
-                type="document_multiple", severity="high", stage="extract",
+                type="document_multiple",
+                severity="high",
+                stage="extract",
                 message=f"row id={drawer_id!r}: {len(doc_values)} docs; excluded",
                 context={"embedding_id": drawer_id, "count": len(doc_values)},
             )
@@ -506,14 +529,14 @@ def _read_drawers_resilient(
         dup_keys = [k for k, c in seen_user_keys.items() if c > 1]
         if dup_keys:
             ctx.add_anomaly(
-                type="duplicate_metadata_keys", severity="medium", stage="extract",
+                type="duplicate_metadata_keys",
+                severity="medium",
+                stage="extract",
                 message=f"row id={drawer_id!r}: duplicate metadata keys; last value kept",
                 context={"embedding_id": drawer_id, "keys": dup_keys},
             )
 
-        drawers.append(
-            DrawerRecord(id=drawer_id, document=doc_values[0], metadata=metadata)
-        )
+        drawers.append(DrawerRecord(id=drawer_id, document=doc_values[0], metadata=metadata))
 
     return drawers, failed
 
