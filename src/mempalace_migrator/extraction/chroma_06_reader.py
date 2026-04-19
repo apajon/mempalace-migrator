@@ -312,7 +312,26 @@ def _read_drawers_resilient(
             summary=f"cannot iterate embeddings: {exc!r}",
         ) from exc
 
-    for row in cursor:
+    while True:
+        try:
+            row = next(cursor)
+        except StopIteration:
+            break
+        except sqlite3.DatabaseError as exc:
+            # Mid-scan page corruption: stop iteration, return partial results.
+            ctx.add_anomaly(
+                type="embeddings_scan_aborted",
+                severity="high",
+                stage="extract",
+                message="sqlite error during row scan; partial extraction returned",
+                context={
+                    "error": repr(exc),
+                    "parsed_so_far": len(drawers),
+                    "failed_so_far": len(failed),
+                },
+            )
+            break
+
         emb_pk = row["id"]
         drawer_id = row["embedding_id"]
 
