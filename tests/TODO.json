@@ -141,7 +141,7 @@
         {
             "id": 5,
             "name": "Extraction",
-            "status": "in_progress",
+            "status": "done",
             "priority": "critical",
             "description": "Resilient data extraction from unstable inputs",
             "blocking": true,
@@ -149,32 +149,38 @@
                 {
                     "id": "5.1",
                     "label": "Partial read support",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "_read_drawers_resilient returns partial results; tested by test_good_rows_survive_bad_rows and test_partial_*"
                 },
                 {
                     "id": "5.2",
                     "label": "Invalid JSON tolerance",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "Extraction is SQLite-typed (no JSON parsing). Document/metadata strings are returned as-is. Tested by test_document_*json* and test_metadata_json_like_*."
                 },
                 {
                     "id": "5.3",
                     "label": "Corrupted SQLite handling",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "PRAGMA integrity_check failure and missing required tables raise ExtractionError (CRITICAL). Mid-scan page error caught by while/next loop. Tested."
                 },
                 {
                     "id": "5.4",
                     "label": "Record-level isolation",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "Each row processed independently; failure appended to failed_rows without affecting others. Tested by all _excluded tests."
                 },
                 {
                     "id": "5.5",
                     "label": "No global crash",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "Pre-flight critical failures raise ExtractionError (not bare exceptions). Per-row failures isolated. Mid-scan DatabaseError caught and returns partial results. Tested by test_mid_scan_corruption_returns_partial."
                 },
                 {
                     "id": "5.6",
                     "label": "Structured anomalies output",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "ctx.add_anomaly() called for every failure with type/severity/stage/message/context. FailedRow.to_dict() tested. Tested by test_anomaly_emitted_* suite."
                 }
             ]
         },
@@ -391,9 +397,9 @@
     ],
     "current_focus": {
         "phase_ids": [
-            5
+            6
         ],
-        "label": "Extraction Hardening (M2)",
-        "reason": "M1 (Detection) exit gate satisfied: structured contradictions, confidence band, unknowns, evidence list. Extraction is now the next blocking foundation."
+        "label": "Anomaly Model (M3)",
+        "reason": "M2 (Extraction) exit gate satisfied: extraction never crashes on recoverable errors. All per-row failures are isolated, structured anomalies emitted, mid-scan DatabaseError caught. 35 tests pass. Next: structured anomaly enum types, severity enforcement, location schema (phase 6)."
     }
 }
