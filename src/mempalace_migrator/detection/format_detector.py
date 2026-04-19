@@ -42,6 +42,13 @@ SUPPORTED_VERSION_PAIRS: tuple[tuple[str, str], ...] = (("0.6.3", "1.5.7"),)
 # Confidence floor for the pipeline to accept the detection.
 MIN_ACCEPT_CONFIDENCE = 0.9
 
+# Confidence band thresholds (categorical view of the float confidence).
+# HIGH means the pipeline gate would accept the detection in isolation.
+# MEDIUM means the signal exists but is not gate-quality. LOW means we have
+# little or no positive identification.
+BAND_HIGH_MIN = MIN_ACCEPT_CONFIDENCE  # 0.9
+BAND_MEDIUM_MIN = 0.6
+
 # Contradiction grade confidence caps (§10.2).
 CAP_BENIGN = 0.85
 CAP_SOFT = 0.80
@@ -85,20 +92,71 @@ class Evidence:
 
 
 @dataclass(frozen=True)
+class Contradiction:
+    """A structured disagreement between (or within) signal sources.
+
+    Always present whenever detection observed a contradiction:
+      * Manifest vs. structure: grades AGREE/BENIGN/SOFT/HARD/SEVERE per
+        DESIGN.md §10.2. (AGREE produces no Contradiction entry; the
+        other four always do.)
+      * Manifest vs. itself: grade ``MANIFEST_INTERNAL`` when
+        ``compatibility_line`` and ``chromadb_version`` resolve to
+        different classes. In that case ``manifest_class`` carries the
+        class derived from ``compatibility_line`` and
+        ``structural_class`` carries the class derived from
+        ``chromadb_version`` (the field names reflect their
+        manifest-vs-structure origin; for ``MANIFEST_INTERNAL`` they are
+        repurposed as "left side / right side" of the intra-manifest
+        conflict).
+
+    Consumers MUST inspect this field to enumerate every contradiction
+    surfaced by detection. ``contradictions == ()`` means "no
+    contradiction detected", with no caveats.
+    """
+
+    grade: str  # 'BENIGN' | 'SOFT' | 'HARD' | 'SEVERE' | 'MANIFEST_INTERNAL'
+    reason: str  # stable machine-readable tag
+    manifest_class: str
+    structural_class: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "grade": self.grade,
+            "reason": self.reason,
+            "manifest_class": self.manifest_class,
+            "structural_class": self.structural_class,
+        }
+
+
+@dataclass(frozen=True)
 class DetectionResult:
     palace_path: str
     classification: str
     confidence: float
     source_version: str | None
     evidence: tuple[Evidence, ...] = field(default_factory=tuple)
+    contradictions: tuple[Contradiction, ...] = field(default_factory=tuple)
+    unknowns: tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def confidence_band(self) -> str:
+        """Categorical view of `confidence`. HIGH means gate-acceptable."""
+        if self.confidence >= BAND_HIGH_MIN:
+            return "HIGH"
+        if self.confidence >= BAND_MEDIUM_MIN:
+            return "MEDIUM"
+        return "LOW"
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "palace_path": self.palace_path,
             "classification": self.classification,
             "confidence": round(self.confidence, 3),
+            "confidence_band": self.confidence_band,
             "source_version": self.source_version,
             "evidence": [e.to_dict() for e in self.evidence],
+            "contradictions": [c.to_dict() for c in self.contradictions],
+            "unknowns": list(self.unknowns),
         }
 
     def is_supported_pair(self) -> bool:
@@ -113,27 +171,50 @@ class DetectionResult:
 def detect_palace_format(palace_path: Path) -> DetectionResult:
     palace_path = Path(palace_path)
     evidence: list[Evidence] = []
+    contradictions: list[Contradiction] = []
 
     if not palace_path.exists():
         evidence.append(Evidence("filesystem", "missing", f"path does not exist: {palace_path}"))
-        return DetectionResult(str(palace_path), UNKNOWN, 0.0, None, tuple(evidence))
+        return DetectionResult(
+            palace_path=str(palace_path),
+            classification=UNKNOWN,
+            confidence=0.0,
+            source_version=None,
+            evidence=tuple(evidence),
+            contradictions=(),
+            unknowns=_collect_unknowns(evidence),
+        )
 
     if not palace_path.is_dir():
         evidence.append(Evidence("filesystem", "fact", f"path is not a directory: {palace_path}"))
-        return DetectionResult(str(palace_path), UNKNOWN, 0.0, None, tuple(evidence))
+        return DetectionResult(
+            palace_path=str(palace_path),
+            classification=UNKNOWN,
+            confidence=0.0,
+            source_version=None,
+            evidence=tuple(evidence),
+            contradictions=(),
+            unknowns=_collect_unknowns(evidence),
+        )
 
-    manifest_class, manifest_conf, manifest_version = _classify_from_manifest(palace_path, evidence)
+    manifest_class, manifest_conf, manifest_version = _classify_from_manifest(palace_path, evidence, contradictions)
     structural_class, structural_conf, structural_signals = _classify_from_structure(palace_path, evidence)
 
     # When the manifest contributed nothing, structure stands alone.
     # R1/R3 prevent any structural path from reaching MIN_ACCEPT_CONFIDENCE.
+    # NB: an intra-manifest conflict ALSO yields manifest_class == UNKNOWN.
+    # In that case `_classify_from_manifest` has already appended a
+    # MANIFEST_INTERNAL Contradiction to `contradictions`, so the early
+    # return below preserves it.
     if manifest_class == UNKNOWN:
         return DetectionResult(
             palace_path=str(palace_path),
             classification=structural_class,
-            confidence=structural_conf,
+            confidence=max(structural_conf, manifest_conf),
             source_version=manifest_version,
             evidence=tuple(evidence),
+            contradictions=tuple(contradictions),
+            unknowns=_collect_unknowns(evidence),
         )
 
     # Grade the relationship and apply the corresponding cap (§10.2).
@@ -145,10 +226,28 @@ def detect_palace_format(palace_path: Path) -> DetectionResult:
         pass  # manifest confidence preserved; existing evidence already documents both
     elif grade is _Grade.BENIGN:
         confidence = min(confidence, CAP_BENIGN)
-        # structure/missing already appended by _classify_from_structure; no new entry
+        # structure/missing already appended by _classify_from_structure; no new entry.
+        # The contradiction is still surfaced structurally so consumers don't need to
+        # re-derive "manifest present, substrate absent" from evidence.
+        contradictions.append(
+            Contradiction(
+                grade="BENIGN",
+                reason="structure_unknown_neutral_cause",
+                manifest_class=manifest_class,
+                structural_class=structural_class,
+            )
+        )
     elif grade is _Grade.SOFT:
         confidence = min(confidence, CAP_SOFT)
         evidence.append(Evidence("structure", "inconsistency", "manifest_vs_structure: row_counts_inconsistent"))
+        contradictions.append(
+            Contradiction(
+                grade="SOFT",
+                reason="row_counts_inconsistent",
+                manifest_class=manifest_class,
+                structural_class=structural_class,
+            )
+        )
     elif grade is _Grade.HARD:
         confidence = min(confidence, CAP_HARD)
         reason = (
@@ -157,11 +256,27 @@ def detect_palace_format(palace_path: Path) -> DetectionResult:
             else f"manifest={manifest_class} structure={structural_class}"
         )
         evidence.append(Evidence("structure", "inconsistency", f"manifest_vs_structure: {reason}"))
+        contradictions.append(
+            Contradiction(
+                grade="HARD",
+                reason=reason,
+                manifest_class=manifest_class,
+                structural_class=structural_class,
+            )
+        )
     elif grade is _Grade.SEVERE:
         classification = UNKNOWN
         confidence = min(confidence, CAP_SEVERE)
         reason = "db_empty" if structural_signals.db_empty else "required_tables_missing"
         evidence.append(Evidence("structure", "inconsistency", f"manifest_vs_structure: {reason}"))
+        contradictions.append(
+            Contradiction(
+                grade="SEVERE",
+                reason=reason,
+                manifest_class=manifest_class,
+                structural_class=structural_class,
+            )
+        )
 
     return DetectionResult(
         palace_path=str(palace_path),
@@ -169,13 +284,31 @@ def detect_palace_format(palace_path: Path) -> DetectionResult:
         confidence=confidence,
         source_version=manifest_version,
         evidence=tuple(evidence),
+        contradictions=tuple(contradictions),
+        unknowns=_collect_unknowns(evidence),
     )
+
+
+def _collect_unknowns(evidence: list[Evidence]) -> tuple[str, ...]:
+    """Aggregate every signal source flagged 'missing' into a stable list.
+
+    Surfaces, as a first-class field, the things detection could *not*
+    determine. Order preserves the inspection order; duplicates are kept
+    in the order they were appended (stable, not deduplicated, so the
+    consumer can see e.g. both "manifest field X missing" and "manifest
+    field Y missing").
+    """
+    return tuple(f"{e.source}:{e.detail}" for e in evidence if e.kind == "missing")
 
 
 # --- Manifest --------------------------------------------------------------
 
 
-def _classify_from_manifest(palace_path: Path, evidence: list[Evidence]) -> tuple[str, float, str | None]:
+def _classify_from_manifest(
+    palace_path: Path,
+    evidence: list[Evidence],
+    contradictions: list[Contradiction],
+) -> tuple[str, float, str | None]:
     manifest_path = palace_path / MANIFEST_FILENAME
     if not manifest_path.is_file():
         evidence.append(Evidence("manifest", "missing", f"{MANIFEST_FILENAME} not present"))
@@ -220,6 +353,14 @@ def _classify_from_manifest(palace_path: Path, evidence: list[Evidence]) -> tupl
                 "manifest",
                 "inconsistency",
                 f"compatibility_line ({line_class}) conflicts with version ({version_class})",
+            )
+        )
+        contradictions.append(
+            Contradiction(
+                grade="MANIFEST_INTERNAL",
+                reason="line_vs_version",
+                manifest_class=line_class,
+                structural_class=version_class,
             )
         )
         return UNKNOWN, 0.4, version if isinstance(version, str) else None

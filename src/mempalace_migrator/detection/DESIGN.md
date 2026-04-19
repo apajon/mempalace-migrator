@@ -38,12 +38,23 @@ Evidence (frozen)
   kind   : 'fact' | 'inconsistency' | 'missing'
   detail : str   # short, machine-greppable
 
+Contradiction (frozen)
+  grade            : 'BENIGN' | 'SOFT' | 'HARD' | 'SEVERE' | 'MANIFEST_INTERNAL'
+  reason           : str   # stable machine-readable tag
+  manifest_class   : str
+  structural_class : str   # for MANIFEST_INTERNAL: repurposed as
+                           # "right side" of the intra-manifest conflict
+                           # (i.e. the class derived from chromadb_version)
+
 DetectionResult (frozen)
-  palace_path    : str
-  classification : 'chroma_0_6' | 'chroma_1_x' | 'unknown'
-  confidence     : float in [0.0, 1.0]
-  source_version : str | None     # only set from manifest
-  evidence       : tuple[Evidence, ...]
+  palace_path     : str
+  classification  : 'chroma_0_6' | 'chroma_1_x' | 'unknown'
+  confidence      : float in [0.0, 1.0]
+  confidence_band : 'LOW' | 'MEDIUM' | 'HIGH'   # derived from confidence
+  source_version  : str | None     # only set from manifest
+  evidence        : tuple[Evidence, ...]
+  contradictions  : tuple[Contradiction, ...]   # see §10 for grades
+  unknowns        : tuple[str, ...]             # aggregated 'missing' signals
 ```
 
 Invariants enforced by construction:
@@ -59,6 +70,19 @@ Invariants enforced by construction:
 - `confidence` and `classification` are independent of one another only
   through the rules in §5; the function that builds the result is the
   single place those rules are applied.
+- `confidence_band` is a categorical view of `confidence` with two
+  break points: `HIGH` iff `confidence >= MIN_ACCEPT_CONFIDENCE` (0.9),
+  `MEDIUM` iff `0.6 <= confidence < 0.9`, `LOW` otherwise. `HIGH` is by
+  construction the band the pipeline gate accepts.
+- `contradictions` enumerates **every** contradiction observed:
+  manifest-vs-structure (grades per §10) and intra-manifest
+  (`MANIFEST_INTERNAL`). `contradictions == ()` means "no contradiction
+  detected", with no caveats — consumers do not need to parse evidence
+  strings.
+- `unknowns` aggregates every `evidence` entry whose `kind == 'missing'`
+  into stable `"<source>:<detail>"` strings, in insertion order.
+  Surfaces what detection could *not* determine without forcing
+  consumers to filter the evidence list themselves.
 
 `DetectionResult.to_dict` is the canonical JSON shape consumed by
 `reporting`. No other serialisation exists.
@@ -344,6 +368,38 @@ Notes:
   contents at all), the manifest is treated as untrustworthy. The
   resulting confidence (`0.40`) is well below the gate and the
   classification is no longer a positive identification.
+
+### 10.2bis MANIFEST_INTERNAL grade (intra-manifest conflict)
+
+The five grades above describe the manifest-vs-structure relationship.
+A separate sixth grade, `MANIFEST_INTERNAL`, describes a contradiction
+**inside** the manifest itself.
+
+| Grade                 | Trigger                                                                                          | Classification | Confidence | Contradiction emitted                                                       |
+|-----------------------|--------------------------------------------------------------------------------------------------|----------------|------------|-----------------------------------------------------------------------------|
+| **MANIFEST_INTERNAL** | `compatibility_line` and `chromadb_version` both parseable but resolve to different classes.     | `unknown`      | `0.40`     | `grade=MANIFEST_INTERNAL`, `reason=line_vs_version`, both sides recorded.   |
+
+Notes:
+
+- A `MANIFEST_INTERNAL` contradiction makes `manifest_class == unknown`
+  in the reconciliation step. The substrate-vs-manifest grading in
+  §10.2 therefore does **not** run (there is nothing to compare
+  against). The `Contradiction` is emitted by
+  `_classify_from_manifest` directly, before reconciliation.
+- `confidence_band` is `LOW` (0.40 < 0.6). The pipeline gate refuses
+  the run.
+- `source_version` is still set from the manifest's
+  `chromadb_version` field when parseable (R2 unchanged: only the
+  manifest can set it). The classification is `unknown`; the version
+  string is preserved purely as a debugging aid.
+- For `MANIFEST_INTERNAL`, the `Contradiction` field-name pair
+  `(manifest_class, structural_class)` is repurposed as
+  `(line-derived class, version-derived class)`. This is documented in
+  the `Contradiction` docstring.
+- A consumer iterating `result.contradictions` therefore sees every
+  contradiction in one place — both manifest-vs-structure and
+  intra-manifest. There is no scenario in which the field is empty
+  while a detection-time contradiction exists.
 
 ### 10.3 R3 is unchanged
 
