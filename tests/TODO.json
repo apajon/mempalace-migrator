@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-19-m3",
+    "last_updated": "2026-04-19-m5",
     "phases": [
         {
             "id": 0,
@@ -272,7 +272,7 @@
         {
             "id": 8,
             "name": "Validation",
-            "status": "todo",
+            "status": "done",
             "priority": "high",
             "description": "Non-misleading validation system",
             "depends_on": [
@@ -282,27 +282,32 @@
                 {
                     "id": "8.1",
                     "label": "Structural validation",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "validation/structural.py: 3 checks (extraction_arithmetic, drawer_shapes, detection_evidence_nonempty). Severity cap HIGH. Verifies upstream object shapes without interpreting contents."
                 },
                 {
                     "id": "8.2",
                     "label": "Internal consistency checks",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "validation/consistency.py: 4 checks (unique_drawer_ids, id_not_in_both_parsed_and_failed, failed_row_has_anomaly which externally verifies the M3 guarantee, stage_result_coherence)."
                 },
                 {
                     "id": "8.3",
                     "label": "Heuristic plausibility",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "validation/heuristics.py: 3 checks with module-level threshold constants (PARSE_RATE_PLAUSIBILITY_FLOOR=0.50, DOMINANT_FAILURE_TYPE_THRESHOLD=0.80). Severity capped at MEDIUM by design — heuristics never produce HIGH/CRITICAL."
                 },
                 {
                     "id": "8.4",
                     "label": "Confidence-based output",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "ValidationResult.confidence_band ∈ {HIGH, MEDIUM, LOW, UNKNOWN} via weakest-outcome rule. Integrated into report confidence_summary; overall_band = weakest_band(detection, extraction, validation)."
                 },
                 {
                     "id": "8.5",
                     "label": "Avoid 'correctness' claims",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "Trichotomous CheckStatus (passed/failed/inconclusive) — no boolean returns. checks_not_performed always populated (target_record_count_parity, target_id_set_parity remain skipped while reconstruction is a stub). Forbidden-vocabulary regex test enforces no 'correct/verified/guaranteed/safe/valid' in JSON output. validate() never raises MigratorError."
                 }
             ]
         },

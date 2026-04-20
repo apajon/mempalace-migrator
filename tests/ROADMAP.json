@@ -166,20 +166,22 @@
         "M8"
     ],
     "current_position": {
-        "milestone": "M4_done_M5_next",
-        "description": "Reporting (M4) exit gate satisfied. Validation (M5) is the next milestone.",
+        "milestone": "M5_done_M6_next",
+        "description": "Validation (M5) exit gate satisfied. CLI (M6) is the next milestone.",
         "risk_level": "medium",
-        "reason": "M4 exit gate conditions met: global stats available (extraction_stats + per-stage execution status); anomalies aggregated by severity, type, and stage with top_severity field; confidence_summary exposes detection band, extraction parse-rate band, and overall_band via explicit weakest-band rule; machine-readable JSON output with schema_version=3 and pinned REPORT_TOP_LEVEL_KEYS; human-readable render_text() extracted into reporting/ (CLI no longer contains rendering logic); consistency invariant self-records REPORT_INCONSISTENT_FAILURE when outcome=failure lacks a matching CRITICAL anomaly. 123 tests pass. Remaining risk concentrates on M5-M8: validation honesty, CLI, adversarial coverage, hardening.",
+        "reason": "M5 exit gate conditions met: structural/consistency/heuristic check families separated into three modules with explicit severity caps (structural+consistency HIGH, heuristic MEDIUM); ValidationResult exposes trichotomous outcomes (passed/failed/inconclusive) — never a boolean; confidence_band ∈ {HIGH, MEDIUM, LOW, UNKNOWN} integrated into report confidence_summary via weakest-band rule (overall = weakest_band(detection, extraction, validation)); checks_not_performed always populated (target_record_count_parity, target_id_set_parity remain skipped while reconstruction is a stub); forbidden-vocabulary regex test enforces no 'correct/verified/guaranteed/safe/valid' in JSON payload; validate() never raises MigratorError; report schema bumped to version 4; EXPLICITLY_NOT_CHECKED grew from 7 to 9 items. 151 tests pass (123 prior + 28 new). Remaining risk concentrates on M6-M8: CLI usability, adversarial coverage, hardening.",
         "completed_milestones": [
             "M1",
             "M2",
             "M3",
-            "M4"
+            "M4",
+            "M5"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
             "Legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch (still produces structurally-valid Anomalies).",
-            "transformation/reconstruction/validation report sections remain null (stubs); stages section correctly marks them skipped or not_run."
+            "transformation/reconstruction report sections remain null (stubs); stages section correctly marks them skipped or not_run. Validation section is now populated.",
+            "Reconstruction-parity validation checks (target_record_count_parity, target_id_set_parity) are explicitly listed in checks_not_performed with reason 'stage_not_implemented' until reconstruction lands."
         ]
     },
     "rules": [
