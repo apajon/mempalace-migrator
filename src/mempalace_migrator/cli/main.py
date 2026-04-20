@@ -27,8 +27,7 @@ import click
 
 from mempalace_migrator.core.context import MigrationContext
 from mempalace_migrator.core.errors import MigratorError
-from mempalace_migrator.core.pipeline import (ANALYZE_PIPELINE, FULL_PIPELINE,
-                                              MIGRATE_PIPELINE, run_pipeline)
+from mempalace_migrator.core.pipeline import ANALYZE_PIPELINE, FULL_PIPELINE, MIGRATE_PIPELINE, run_pipeline
 from mempalace_migrator.reporting.text_renderer import render_text
 
 # --- Exit codes -----------------------------------------------------------
@@ -289,11 +288,6 @@ def main() -> None:
         sys.exit(exc.code)
     except click.Abort:
         click.echo("Aborted.", err=True)
-        sys.exit(EXIT_USAGE_ERROR)
-
-
-if __name__ == "__main__":
-    main()
         sys.exit(EXIT_USAGE_ERROR)
 
 
