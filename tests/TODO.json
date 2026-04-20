@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-20-m8-done",
+    "last_updated": "2026-04-20-m9-design-recorded",
     "phases": [
         {
             "id": 0,
@@ -454,13 +454,336 @@
                     "note": "Imports M7 invariants from a refactored tests/adversarial/_invariants.py module — test-only refactor, no M7 assertion changes. Drift fails the suite; there is no --update-baseline flag."
                 }
             ]
+        },
+        {
+            "id": 12,
+            "name": "Transformation Stage",
+            "status": "done",
+            "priority": "critical",
+            "description": "Implement step_transform: pure, in-memory normalisation of ExtractionResult.drawers into a TransformedBundle ready for ChromaDB 1.x ingestion. No I/O, no writes, no chromadb import. Source material: _normalize_metadata, _validate_drawer_record, _analyze_drawers in mempalace-mcp-bridge:scripts/palace_reconstruction_prototype.py.",
+            "design_doc": "tests/M9_TRANSFORMATION_DESIGN.md",
+            "exit_gate_checklist": "tests/M9_TRANSFORMATION_DESIGN.md#12-exit-gate-checklist-what-m9-done-means",
+            "implementation_status": "done — all tasks complete, 90 new tests green, 672 total tests green, baselines regenerated",
+            "depends_on": [
+                5,
+                6,
+                8
+            ],
+            "non_goals": [
+                "No serialisation to disk (the prototype's drawers.jsonl bundle format is out of scope for the in-process pipeline)",
+                "No new exit codes (4 is already reserved for transform failure by M6.4)",
+                "No embedding re-computation",
+                "No new CLI flags"
+            ],
+            "tasks": [
+                {
+                    "id": "12.1",
+                    "label": "TransformedBundle dataclass",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/transformation/__init__.py",
+                    "asserts": "frozen dataclass with: collection_name (str), collection_metadata (dict[str, str|int|float|bool]), drawers (tuple[TransformedDrawer, ...]), summary (TransformedSummary). TransformedDrawer holds id (str), document (str), metadata (dict). TransformedSummary holds drawer_count, sample_ids, metadata_keys, wing_room_counts, length_profile (mirrors prototype _analyze_drawers output but typed)."
+                },
+                {
+                    "id": "12.2",
+                    "label": "Metadata normalisation (port _normalize_metadata)",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/transformation/normalize.py",
+                    "asserts": "normalize_metadata(value) -> tuple[dict, list[str]]. Accepts only str/int/float/bool values. Non-string keys, list/dict/None values rejected with issue messages. Returns (normalised_dict, issues). Pure function. Unit-tested for every rejected type."
+                },
+                {
+                    "id": "12.3",
+                    "label": "Drawer integrity analysis (port _analyze_drawers + _validate_drawer_record)",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/transformation/integrity.py",
+                    "asserts": "analyze_drawers(drawers) -> DrawerAnalysis with id_integrity (duplicate_ids, blank_id_records), content_integrity (non_string_document_ids, empty_document_ids, length_profile), metadata_integrity (structural_issue_ids). Each issue is a structured record, not a string."
+                },
+                {
+                    "id": "12.4",
+                    "label": "transform(ctx) entry point",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/transformation/__init__.py",
+                    "asserts": "transform(ctx) -> TransformedBundle. Reads ctx.extracted_data.drawers. Drops drawers with blank ids, non-string documents, unparseable metadata — each drop emits exactly one anomaly with stage='transform' and a new AnomalyType (TRANSFORM_DRAWER_DROPPED, TRANSFORM_METADATA_COERCED). Duplicates are dropped (matching prototype) with anomaly TRANSFORM_DUPLICATE_ID_DROPPED. Stores result on ctx.transformed_data."
+                },
+                {
+                    "id": "12.5",
+                    "label": "Pipeline wiring",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/core/pipeline.py",
+                    "asserts": "step_transform calls transformation.transform(ctx); removes the NOT_IMPLEMENTED anomaly emission. step_transform raises TransformError (new MigratorError subclass) on unrecoverable failure (e.g. extracted_data is None). Records stage as executed in ctx.stage_results."
+                },
+                {
+                    "id": "12.6",
+                    "label": "AnomalyType registration",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/core/context.py",
+                    "asserts": "new enum members under '# --- Transformation ---' section: TRANSFORM_DRAWER_DROPPED, TRANSFORM_METADATA_COERCED, TRANSFORM_DUPLICATE_ID_DROPPED, TRANSFORM_INPUT_MISSING. Closed-registry contract preserved."
+                },
+                {
+                    "id": "12.7",
+                    "label": "Report section",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/reporting/report_builder.py",
+                    "asserts": "report['transformation'] returns {drawer_count, sample_ids, metadata_keys, wing_room_counts, length_profile, dropped_count} when ctx.transformed_data is non-None; remains None otherwise. text_renderer adds a Transformation section."
+                },
+                {
+                    "id": "12.8",
+                    "label": "Purity contract test",
+                    "status": "todo",
+                    "target_file": "tests/test_transformation.py",
+                    "asserts": "AST walk over src/mempalace_migrator/transformation/ asserts no `import chromadb`, no `open(`, no `Path.write_*`, no subprocess. Same structural ban as M8.1 logging discipline, scoped to the writer ban."
+                }
+            ]
+        },
+        {
+            "id": 13,
+            "name": "Reconstruction Stage",
+            "status": "todo",
+            "priority": "critical",
+            "description": "Implement step_reconstruct: the only writer in the pipeline. Builds a fresh ChromaDB 1.5.7 palace at ctx.target_path from ctx.transformed_data via the public chromadb client API. Strictly atomic: any failure cleans up the partial target_path. Source material: import_drawers + ensure_target_is_safe in mempalace-mcp-bridge:scripts/palace_reconstruction_prototype.py.",
+            "depends_on": [
+                12
+            ],
+            "non_goals": [
+                "No bundle serialisation (export_drawers / load_export_bundle from the prototype are out of scope — the migrator runs in-process)",
+                "No retrieval / usage / MCP-runtime validation in this milestone (deferred per ROADMAP non_goals)",
+                "No new exit codes (5 is already reserved for reconstruct failure by M6.4)",
+                "No --force / --overwrite flag (refusal to overwrite is a hard contract, not a flag)",
+                "No write to source palace (source is opened read-only by extraction; reconstruction never touches the source path)"
+            ],
+            "tasks": [
+                {
+                    "id": "13.1",
+                    "label": "chromadb dependency",
+                    "status": "todo",
+                    "target_file": "pyproject.toml",
+                    "asserts": "dependencies += ['chromadb>=1.5.7,<2']. Version pin matches the supported pair documented in README. Lock-file regenerated."
+                },
+                {
+                    "id": "13.2",
+                    "label": "Target safety check (port ensure_target_is_safe)",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/reconstruction/safety.py",
+                    "asserts": "ensure_target_is_safe(target_path) raises ReconstructionError if: path exists and is a file; path exists and is a non-empty directory. Path absent or empty directory is OK. No mkdir performed (caller's responsibility)."
+                },
+                {
+                    "id": "13.3",
+                    "label": "ReconstructionResult dataclass",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/reconstruction/__init__.py",
+                    "asserts": "frozen dataclass: target_path (Path), collection_name (str), imported_count (int), batch_size (int), chromadb_version (str), target_manifest_path (Path)."
+                },
+                {
+                    "id": "13.4",
+                    "label": "Atomic batch insert (port import_drawers core)",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/reconstruction/writer.py",
+                    "asserts": "reconstruct(ctx) -> ReconstructionResult. Opens chromadb.PersistentClient at ctx.target_path. Creates collection from TransformedBundle.collection_name + collection_metadata. Inserts via collection.add() in batches of 500. On any exception after target_path.mkdir, calls _rollback_target(target_path) which shutil.rmtree the directory and re-raises ReconstructionError."
+                },
+                {
+                    "id": "13.5",
+                    "label": "Target manifest writer",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/reconstruction/manifest.py",
+                    "asserts": "writes TARGET_MANIFEST_FILENAME='reconstruction-target-manifest.json' at target_path with: format_version (int), created_at (UTC ISO Z), source_palace_path, detected_format, drawer_count, chromadb_version, mempalace_migrator_version, warnings list. Mirrors prototype target_manifest schema."
+                },
+                {
+                    "id": "13.6",
+                    "label": "Pipeline wiring",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/core/pipeline.py",
+                    "asserts": "step_reconstruct calls reconstruction.reconstruct(ctx) when ctx.target_path is set, else skips with stage_results['reconstruct']='skipped' and reason='no_target_path'. Removes the NOT_IMPLEMENTED anomaly emission. step_reconstruct on failure raises ReconstructionError -> exit 5."
+                },
+                {
+                    "id": "13.7",
+                    "label": "AnomalyType registration",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/core/context.py",
+                    "asserts": "new enum members under '# --- Reconstruction ---': TARGET_PATH_NOT_EMPTY, TARGET_PATH_NOT_DIRECTORY, CHROMADB_CLIENT_FAILED, CHROMADB_COLLECTION_CREATE_FAILED, CHROMADB_BATCH_INSERT_FAILED, RECONSTRUCTION_ROLLBACK, RECONSTRUCTION_INPUT_MISSING."
+                },
+                {
+                    "id": "13.8",
+                    "label": "CLI: migrate subcommand",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/cli/main.py",
+                    "asserts": "new `migrate` subcommand: `migrate SOURCE --target TARGET`. --target required. Pipeline = MIGRATE_PIPELINE (detect+extract+transform+reconstruct+validate). PIPELINES['migrate'] registered. analyze and inspect continue to refuse --target (Click error). Exit-code policy unchanged."
+                },
+                {
+                    "id": "13.9",
+                    "label": "Report section",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/reporting/report_builder.py",
+                    "asserts": "report['reconstruction'] returns {target_path, collection_name, imported_count, batch_size, chromadb_version, target_manifest_path} when ctx.reconstruction_result is non-None. text_renderer adds a Reconstruction section."
+                },
+                {
+                    "id": "13.10",
+                    "label": "Source-mtime invariant test",
+                    "status": "todo",
+                    "target_file": "tests/test_reconstruction.py",
+                    "asserts": "after a successful migrate, sha256(source_palace/chroma.sqlite3) is byte-identical to the pre-run hash; source mtime unchanged. Hard contract: reconstruction never touches source."
+                },
+                {
+                    "id": "13.11",
+                    "label": "Atomicity test (mid-batch failure injection)",
+                    "status": "todo",
+                    "target_file": "tests/test_reconstruction.py",
+                    "asserts": "monkeypatch collection.add to raise on batch index 1; assert exit code 5, ReconstructionError raised, target_path no longer exists on disk (rollback complete), no orphan chroma.sqlite3 left behind."
+                }
+            ]
+        },
+        {
+            "id": 14,
+            "name": "Target Parity Validation",
+            "status": "todo",
+            "priority": "high",
+            "description": "Once reconstruction lands, lift target_record_count_parity and target_id_set_parity out of checks_not_performed and add document/metadata/embedding parity checks. Validation never opens the target in write mode. Source material: validate_reconstruction in mempalace-mcp-bridge:scripts/palace_reconstruction_prototype.py.",
+            "depends_on": [
+                13
+            ],
+            "non_goals": [
+                "No retrieval-parity check (out of scope per ROADMAP non_goals)",
+                "No usage-scenario-parity check (out of scope)",
+                "No MCP-runtime check (out of scope)",
+                "No new severities, no new exit codes"
+            ],
+            "tasks": [
+                {
+                    "id": "14.1",
+                    "label": "Target reader (read-only)",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/validation/target_reader.py",
+                    "asserts": "open_target_readonly(target_path, collection_name) -> iterator of (id, document, metadata, embedding|None). Uses chromadb.PersistentClient + collection.get(limit=500, offset=...) paging. Embeddings included only if accessible; missing-embedding ids surfaced as a separate diagnostic. No collection.add / collection.update / collection.delete call site (AST-checked)."
+                },
+                {
+                    "id": "14.2",
+                    "label": "target_record_count_parity check",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
+                    "asserts": "compares collection.count() to ctx.transformed_data.summary.drawer_count. Status passed if equal, failed otherwise with anomaly TARGET_RECORD_COUNT_MISMATCH (severity HIGH) carrying expected/actual."
+                },
+                {
+                    "id": "14.3",
+                    "label": "target_id_set_parity check",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
+                    "asserts": "compares set(target_ids) to set(transformed_ids). Surfaces missing_in_target and unexpected_in_target as evidence (capped at 20 items each, total count in summary). Anomaly TARGET_ID_SET_MISMATCH on failure."
+                },
+                {
+                    "id": "14.4",
+                    "label": "target_document_hash_parity check",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
+                    "asserts": "sha256 over normalised document text per drawer id; compares with transformed_data hashes for shared ids. Anomaly TARGET_DOCUMENT_HASH_MISMATCH per drawer id (capped at 20 reported, total count in summary). Severity HIGH."
+                },
+                {
+                    "id": "14.5",
+                    "label": "target_metadata_parity check",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
+                    "asserts": "compares metadata_by_id; surfaces missing_keys_in_target and value-divergence per drawer id. Anomaly TARGET_METADATA_MISMATCH (severity HIGH)."
+                },
+                {
+                    "id": "14.6",
+                    "label": "target_embedding_presence check (best-effort)",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
+                    "asserts": "if include=['embeddings'] is accessible, missing-embedding ids surfaced. If not accessible (e.g. embedding_function unavailable), check status is inconclusive with reason='embeddings_not_accessible'. Severity capped at MEDIUM (best-effort)."
+                },
+                {
+                    "id": "14.7",
+                    "label": "Lift parity skips",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/validation/__init__.py",
+                    "asserts": "_SKIPPED_RECONSTRUCTION no longer contains target_record_count_parity / target_id_set_parity when ctx.reconstruction_result is non-None. report_builder.EXPLICITLY_NOT_CHECKED loses both entries. Test asserts the two checks now appear in report.validation.checks_executed."
+                },
+                {
+                    "id": "14.8",
+                    "label": "AnomalyType registration",
+                    "status": "todo",
+                    "target_file": "src/mempalace_migrator/core/context.py",
+                    "asserts": "new enum members under '# --- Validation: target parity ---': TARGET_RECORD_COUNT_MISMATCH, TARGET_ID_SET_MISMATCH, TARGET_DOCUMENT_HASH_MISMATCH, TARGET_METADATA_MISMATCH, TARGET_EMBEDDING_MISSING."
+                },
+                {
+                    "id": "14.9",
+                    "label": "Read-only invariant test",
+                    "status": "todo",
+                    "target_file": "tests/test_target_parity.py",
+                    "asserts": "hash(target_palace/chroma.sqlite3) before validation == hash after validation. Validation never mutates the target."
+                }
+            ]
+        },
+        {
+            "id": 15,
+            "name": "Write-Path Adversarial + Hardening",
+            "status": "todo",
+            "priority": "high",
+            "description": "Extend the M7 adversarial corpus and the M8 baseline envelope to cover the new transform/reconstruct/parity stages. Same discipline as M7/M8: no new pipeline stages, no new exit codes, no new CLI flags, no new severities. Defects discovered are fixed in the owning production module.",
+            "depends_on": [
+                12,
+                13,
+                14,
+                10,
+                11
+            ],
+            "design_doc": "tests/M12_WRITE_PATH_DESIGN.md (to be written before implementation)",
+            "tasks": [
+                {
+                    "id": "15.1",
+                    "label": "Adversarial: target safety",
+                    "status": "todo",
+                    "target_file": "tests/adversarial/test_reconstruction_target.py",
+                    "asserts": "fixtures: target exists as file, target is non-empty directory, target on read-only filesystem (skipif for non-POSIX); each must produce exit 5, ReconstructionError, structured anomaly, no traceback w/o --debug."
+                },
+                {
+                    "id": "15.2",
+                    "label": "Adversarial: mid-batch chromadb failure",
+                    "status": "todo",
+                    "target_file": "tests/adversarial/test_reconstruction_rollback.py",
+                    "asserts": "monkeypatch chromadb collection.add to raise on batch N; assert exit 5, target_path absent post-run (rollback succeeded), source byte-identical, anomaly RECONSTRUCTION_ROLLBACK present."
+                },
+                {
+                    "id": "15.3",
+                    "label": "Adversarial: transformation rejects-all",
+                    "status": "todo",
+                    "target_file": "tests/adversarial/test_transformation_pathological.py",
+                    "asserts": "input where every drawer has blank id or non-string document; assert TransformedBundle.drawers is empty, transformation emits N drop anomalies, downstream reconstruction either skips or refuses with structured anomaly (no silent empty target)."
+                },
+                {
+                    "id": "15.4",
+                    "label": "M7 invariants on extended corpus",
+                    "status": "todo",
+                    "target_file": "tests/adversarial/test_adversarial_invariants.py",
+                    "asserts": "the existing nine M7 invariants iterate over the new fixtures from 15.1/15.2/15.3 unchanged. No new invariants added; no existing invariant relaxed."
+                },
+                {
+                    "id": "15.5",
+                    "label": "Baseline: migrate-success entry",
+                    "status": "todo",
+                    "target_file": "tests/hardening/baselines/runtime_envelope.json",
+                    "asserts": "new baseline entry for `migrate` on the minimal valid chroma_06 fixture; recorded via tests/hardening/rebaseline.py in a reviewed PR; tolerance unchanged (50% wall-clock, 25% RSS)."
+                },
+                {
+                    "id": "15.6",
+                    "label": "Stability: report-signature on migrate",
+                    "status": "todo",
+                    "target_file": "tests/hardening/test_stability_invariants.py",
+                    "asserts": "report-signature stability re-asserted on a successful migrate run. Non-deterministic fields (run_id, started_at, target_manifest_path absolute, imported_count if non-deterministic) excluded from signature via the existing redaction map."
+                },
+                {
+                    "id": "15.7",
+                    "label": "Logging discipline on new modules",
+                    "status": "todo",
+                    "target_file": "tests/hardening/test_logging_discipline.py",
+                    "asserts": "existing AST walk now sweeps src/mempalace_migrator/transformation/ and src/mempalace_migrator/reconstruction/ for forbidden call sites (print/logging/sys.std*.write). No new exception list."
+                }
+            ]
         }
     ],
     "current_focus": {
-        "phase_ids": [],
-        "label": "All milestones complete — M8 exit gate satisfied",
-        "reason": "M8 exit gate is satisfied. tests/hardening/ implemented with 4 sub-task files (11.1–11.4), tests/adversarial/_invariants.py (shared check functions), tests/hardening/rebaseline.py, and committed baseline files. Full suite green at 718 passed. All nine M7 invariants re-enforced on the 11-entry baseline corpus. AST walk finds zero forbidden call sites in src/. Two-run determinism check passes. Wall-clock and RSS envelopes pass with fresh-subprocess RUSAGE_CHILDREN isolation.",
-        "design_doc": "tests/M8_HARDENING_DESIGN.md",
-        "implementation_status": "done — 718 tests green"
+        "phase_ids": [
+            13
+        ],
+        "label": "M10 Reconstruction Stage — step_reconstruct wires TransformedBundle into ChromaDB 1.x",
+        "reason": "M9 complete (672 tests green, baselines regenerated). The transformation layer is now fully implemented and tested. step_transform produces a typed TransformedBundle. Next: implement step_reconstruct — the only pipeline step that performs I/O (ChromaDB writes).",
+        "next_milestone": "M10 Reconstruction Stage (the only writer)"
     }
 }

@@ -153,7 +153,107 @@
                 "No random crashes"
             ],
             "exit_gate": "System is stable under stress"
+        },
+        {
+            "id": "M9",
+            "name": "Transformation Stage (pure, in-memory)",
+            "phases": [
+                12
+            ],
+            "goal": "Normalise extracted DrawerRecords into a typed bundle ready for ChromaDB 1.x ingestion. Pure function: no I/O, no writes, no network, no chromadb import.",
+            "success_criteria": [
+                "TransformedBundle dataclass produced and stored on ctx.transformed_data",
+                "Per-drawer normalisation rejects unsupported metadata value types (lists, dicts, None) with structured anomalies",
+                "Integrity analysis surfaces duplicate ids, blank ids, empty/non-string documents, structural metadata issues as anomalies (NOT raised)",
+                "step_transform replaces the NOT_IMPLEMENTED stub anomaly with real work",
+                "report_builder.py 'transformation' section returns a structured summary instead of None",
+                "Transformation never writes anywhere; pure function semantics enforced by test (no chromadb import in transformation/)"
+            ],
+            "failure_modes_to_eliminate": [
+                "Silent metadata coercion (e.g. list -> str)",
+                "Hidden record drops without per-drawer anomaly",
+                "Module-level chromadb import (transformation must not depend on the writer)"
+            ],
+            "exit_gate": "step_transform produces a TransformedBundle deterministically, every drop or coercion is structurally represented as an anomaly, and no writer dependency leaks into the transformation module."
+        },
+        {
+            "id": "M10",
+            "name": "Reconstruction Stage (the only writer)",
+            "phases": [
+                13
+            ],
+            "goal": "Build a fresh ChromaDB 1.5.7 palace at ctx.target_path from ctx.transformed_data via the public chromadb client API. Strictly atomic: on any failure, target_path is left in the same state as before the run (rolled back).",
+            "success_criteria": [
+                "chromadb>=1.5.7,<2 added to pyproject.toml dependencies; version pin matches the supported pair documented in README",
+                "target_path safety check refuses non-empty existing directories before any write",
+                "ReconstructionResult dataclass stored on ctx.reconstruction_result (collection_name, imported_count, target_manifest_path, chromadb_version)",
+                "Batch insert (size 500, matching prototype) via collection.add(); per-batch failure raises ReconstructionError with structured anomaly listing affected drawer ids",
+                "Atomicity: any failure after target_path.mkdir cleans up the partial directory; tested by an injected mid-batch failure fixture",
+                "target_manifest written at TARGET_MANIFEST_FILENAME with bundle provenance (source palace path, detected_format, drawer_count, chromadb_version, mempalace_version)",
+                "step_reconstruct replaces the NOT_IMPLEMENTED stub anomaly with real work; exit code 5 reachable on reconstruction failure (already pinned by M6.4)",
+                "New CLI subcommand `migrate` requires --target; `inspect` and `analyze` continue to refuse --target (their pipelines do not include reconstruction)",
+                "report_builder.py 'reconstruction' section returns a structured summary instead of None"
+            ],
+            "failure_modes_to_eliminate": [
+                "Partial target palace left on disk after failure",
+                "Silent overwrite of an existing populated target directory",
+                "Source palace ever opened in write mode (source remains read-only at the SQLite URI level)",
+                "Reconstruction triggered without an explicit --target (the analyze/inspect pipelines must remain non-destructive)"
+            ],
+            "exit_gate": "A fresh ChromaDB 1.5.7 palace is built atomically at --target, the source is byte-identical before and after the run (verified by test), and any failure leaves no partial target on disk."
+        },
+        {
+            "id": "M11",
+            "name": "Target Parity Validation",
+            "phases": [
+                14
+            ],
+            "goal": "Once reconstruction lands, lift the two parity checks currently parked in checks_not_performed (target_record_count_parity, target_id_set_parity) into real checks, and add document/metadata content parity. Validation never opens the target in write mode.",
+            "success_criteria": [
+                "target_record_count_parity check moved out of _SKIPPED_RECONSTRUCTION when ctx.reconstruction_result is non-None; reads count from a read-only chromadb client",
+                "target_id_set_parity check moved out of _SKIPPED_RECONSTRUCTION; missing_in_target and unexpected_in_target sets surfaced via structured anomaly evidence",
+                "target_document_hash_parity check (sha256 over normalised text) surfaces content mismatches per drawer id",
+                "target_metadata_parity check surfaces metadata key/value divergence per drawer id",
+                "target_embedding_presence check (best-effort, capped severity MEDIUM): if include=['embeddings'] is accessible, missing-embedding ids are surfaced; if not accessible, check status is inconclusive with reason",
+                "checks_not_performed list shrinks accordingly; report_builder.EXPLICITLY_NOT_CHECKED loses the two parity entries",
+                "All target-side reads use chromadb.PersistentClient with no writes; tested by source/target mtime invariant"
+            ],
+            "failure_modes_to_eliminate": [
+                "False target validation (silently passing when target is empty or partially built)",
+                "Target opened in write mode by validation",
+                "checks_not_performed retaining target_*_parity entries after reconstruction is implemented (regression of M5.5 honesty contract)"
+            ],
+            "exit_gate": "For every successful migrate run, the target palace is structurally and content-wise identical to the transformed bundle, and any divergence is surfaced as a structured failed/inconclusive validation check."
+        },
+        {
+            "id": "M12",
+            "name": "Write-Path Adversarial + Hardening",
+            "phases": [
+                15
+            ],
+            "goal": "Extend the M7 adversarial corpus and the M8 baseline envelope to cover the new transform/reconstruct/parity stages. No new pipeline stages, no new exit codes, no new CLI flags introduced by M12.",
+            "success_criteria": [
+                "Adversarial fixtures: existing target directory non-empty, target path is a file, target on read-only filesystem, mid-batch chromadb failure (injected), transformation rejects-all-drawers input, source-mtime-invariant violated",
+                "All M7 cross-cutting invariants (no exit 10, no traceback w/o --debug, no silent CRITICAL, schema_version stable, JSON-safe, anomaly well-formed, forbidden-vocabulary, stage attribution, stdout/stderr discipline) re-verified on every new fixture",
+                "Baseline corpus extended with at least one successful migrate run; runtime_envelope.json gains a new entry for the migrate command",
+                "Stability invariants: report-signature stability re-asserted on a successful migrate run (modulo run_id/started_at/imported_count fields if non-deterministic)",
+                "Logging discipline AST walk re-checks transformation/ and reconstruction/ for forbidden call sites"
+            ],
+            "failure_modes_to_eliminate": [
+                "Reconstruction crash that escapes as exit 10 instead of exit 5",
+                "Silent partial-target left on disk after adversarial failure injection",
+                "New code paths in transformation/ or reconstruction/ slipping in print/logging without M8.1 catching it"
+            ],
+            "exit_gate": "The full M7 invariant battery still holds across the extended corpus, the M8 baseline includes a migrate-success entry, and the write path fails loudly and atomically on every adversarial fixture."
         }
+    ],
+    "non_goals": [
+        "Retrieval-parity validation (record-retrieval / compare-retrieval from the prototype) — out of scope; belongs to a separate post-migration audit tool",
+        "Usage-scenario-parity validation (record-usage / compare-usage from the prototype) — out of scope; belongs to a separate post-migration audit tool",
+        "MCP-runtime validation (validate-mcp-runtime from the prototype) — out of scope; the migrator does not own the runtime",
+        "Embedding re-computation or embedding-shape validation — embeddings are passed through opaquely; chromadb 1.x re-derives them from documents on insert",
+        "Multi-collection palaces — single-collection invariant is preserved (M2 already enforces it on the source side)",
+        "Migration of palaces other than chroma_0_6 — only the documented version pair is supported; other formats remain rejected at detection"
     ],
     "execution_order": [
         "M1",
@@ -163,10 +263,16 @@
         "M5",
         "M6",
         "M7",
-        "M8"
+        "M8",
+        "M9",
+        "M10",
+        "M11",
+        "M12"
     ],
     "current_position": {
         "milestone": "M8_done",
+        "next_target": "M10",
+        "next_target_reason": "M9 Transformation Stage complete (672 tests green). step_transform produces a typed TransformedBundle via pure in-memory normalisation. step_reconstruct still emits NOT_IMPLEMENTED — the only remaining pipeline stub. M10 must implement the ChromaDB 1.x writer: consume TransformedBundle, open the target collection, ingest all drawers, emit structured anomalies for write failures.",
         "description": "Final Hardening (M8) exit gate satisfied. tests/hardening/ fully implemented with 4 sub-task files (11.1–11.4), shared invariant module tests/adversarial/_invariants.py, rebaseline script, and committed baseline files. Baseline files include schema_version, recorded_on, python_version, and tolerance envelope per §3.3. Tolerance is read from the baseline file by test files (no hardcoded factors). Full suite green at 718 passed.",
         "risk_level": "low",
         "reason": "M8 exit gate conditions met: (1) tests/hardening/ exists with all four sub-task files; (2) baselines/runtime_envelope.json and baselines/report_signatures.json committed with schema_version=1, recorded_on (UTC ISO), python_version=\"3.12\", and tolerance block (wall_clock_pct=50, rss_bytes_pct=25) per §3.3 — provenance link to HEAD is explicit; (3) 11 baseline corpus entries (allowed_exit_codes ⊆ {0, 8}) covered by all nine M7 invariants; (4) AST walk finds zero forbidden call sites in src/; (5) tolerance read from baseline file in both test_performance_baseline.py and test_memory_envelope.py — re-baseline is the only way to change tolerance; (6) no invariant xfailed/skipped without asserted reason; (7) full suite green at 718 passed; (8) TODO.json phase 11 sub-tasks 11.1–11.4 are done.",
@@ -178,7 +284,8 @@
             "M5",
             "M6",
             "M7",
-            "M8"
+            "M8",
+            "M9"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
