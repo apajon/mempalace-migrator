@@ -1,7 +1,7 @@
 """M8 task 11.4 — stability invariants exit gate.
 
-Runs all nine M7 structural invariants over the *baseline corpus* (entries
-whose ``allowed_exit_codes ⊆ {0, 8}``) and additionally checks:
+Checks specific to the *baseline corpus* (entries whose
+``allowed_exit_codes ⊆ {0, 8}``):
 
   * **Report-signature stability** — the report produced by each baseline
     entry matches the committed ``report_signatures.json`` (modulo the volatile
@@ -9,9 +9,9 @@ whose ``allowed_exit_codes ⊆ {0, 8}``) and additionally checks:
   * **Determinism** — two consecutive CLI invocations for the same entry
     produce identical signatures.
 
-Import note: check functions live in ``tests/adversarial/_invariants.py`` so
-the same logic guards both the full adversarial corpus (M7) and this hardened
-baseline subset (M8).
+The nine M7 structural invariants are intentionally NOT duplicated here:
+``tests/adversarial/test_adversarial_invariants.py`` already parametrises
+over the full CORPUS which contains every BASELINE_CORPUS entry.
 """
 
 from __future__ import annotations
@@ -21,19 +21,10 @@ from typing import Any
 
 import pytest
 
-from tests.adversarial._invariants import (
-    check_anomaly_well_formedness,
-    check_exit_code_in_allowed_set,
-    check_failure_stage_is_known,
-    check_json_safety,
-    check_no_forbidden_vocabulary,
-    check_no_silent_critical,
-    check_no_traceback_on_stderr,
-    check_no_unexpected_exit_code,
-    check_schema_stability,
-)
 from tests.adversarial.conftest import CorpusEntry, run_cli
-from tests.hardening.conftest import BASELINE_CORPUS, extract_report_signature, load_report_signatures
+from tests.hardening.conftest import (BASELINE_CORPUS,
+                                      extract_report_signature,
+                                      load_report_signatures)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -92,83 +83,6 @@ def baseline_run(request, tmp_path, _run_cache):
     }
     _run_cache[entry.cid] = record
     return record
-
-
-# ---------------------------------------------------------------------------
-# Nine M7 structural invariants applied to the baseline corpus
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_no_unexpected_exit_code(baseline_run):
-    """Inv. 1 — no exit 10 on baseline entries."""
-    check_no_unexpected_exit_code(baseline_run["entry"].cid, baseline_run["returncode"], baseline_run["stderr"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_exit_code_in_allowed_set(baseline_run):
-    """Inv. ent. — exit code is in the per-entry allowed set."""
-    e = baseline_run["entry"]
-    check_exit_code_in_allowed_set(e.cid, baseline_run["returncode"], e.allowed_exit_codes, baseline_run["stderr"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_no_traceback_on_stderr(baseline_run):
-    """Inv. 2 — no Python traceback on stderr."""
-    check_no_traceback_on_stderr(baseline_run["entry"].cid, baseline_run["stderr"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_no_silent_critical(baseline_run):
-    """Inv. 3 — no silent CRITICAL."""
-    check_no_silent_critical(baseline_run["entry"].cid, baseline_run["report"], baseline_run["returncode"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_schema_stability(baseline_run):
-    """Inv. 4 — schema_version and top-level keys."""
-    check_schema_stability(baseline_run["entry"].cid, baseline_run["report"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_json_safety(baseline_run):
-    """Inv. 5 — report round-trips through json.dumps."""
-    check_json_safety(baseline_run["entry"].cid, baseline_run["report"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_anomaly_well_formedness(baseline_run):
-    """Inv. 6 — each anomaly has registered type, non-empty stage, ≥1 evidence."""
-    check_anomaly_well_formedness(baseline_run["entry"].cid, baseline_run["report"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_no_forbidden_vocabulary(baseline_run):
-    """Inv. 7 — no forbidden correctness vocabulary in report."""
-    check_no_forbidden_vocabulary(baseline_run["entry"].cid, baseline_run["report"])
-
-
-@pytest.mark.parametrize("baseline_run", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS), indirect=True)
-def test_baseline_failure_stage_is_known(baseline_run):
-    """Inv. 8 — failure.stage ∈ known stages."""
-    check_failure_stage_is_known(baseline_run["entry"].cid, baseline_run["report"])
-
-
-# ---------------------------------------------------------------------------
-# Inv. 9b — --quiet suppresses stdout on baseline entries
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("entry", BASELINE_CORPUS, ids=_ids(BASELINE_CORPUS))
-def test_baseline_quiet_suppresses_stdout(entry: CorpusEntry, tmp_path):
-    """Inv. 9b — under --quiet, stdout is empty."""
-    palace = entry.builder(tmp_path)
-    result = run_cli(["--quiet", entry.pipeline, str(palace)])
-    assert result.stdout == "", f"[{entry.cid}] --quiet leaked output to stdout: {result.stdout!r}"
-    assert result.returncode != 10, f"[{entry.cid}] --quiet returned EXIT_UNEXPECTED"
-    assert (
-        result.returncode in entry.allowed_exit_codes
-    ), f"[{entry.cid}] --quiet exit {result.returncode} not in {sorted(entry.allowed_exit_codes)}"
 
 
 # ---------------------------------------------------------------------------

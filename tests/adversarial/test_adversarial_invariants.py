@@ -32,16 +32,19 @@ from typing import Any
 
 import pytest
 
-from ._invariants import (_KNOWN_STAGES, check_anomaly_well_formedness,
-                          check_exit_code_in_allowed_set,
-                          check_failure_stage_is_known, check_json_safety,
-                          check_no_forbidden_vocabulary,
-                          check_no_silent_critical,
-                          check_no_traceback_on_stderr,
-                          check_no_unexpected_exit_code,
-                          check_schema_stability)
-from .conftest import (CORPUS, EXIT_CRITICAL_ANOMALY, EXIT_OK, EXIT_UNEXPECTED,
-                       CorpusEntry, run_cli)
+from ._invariants import (
+    _KNOWN_STAGES,
+    check_anomaly_well_formedness,
+    check_exit_code_in_allowed_set,
+    check_failure_stage_is_known,
+    check_json_safety,
+    check_no_forbidden_vocabulary,
+    check_no_silent_critical,
+    check_no_traceback_on_stderr,
+    check_no_unexpected_exit_code,
+    check_schema_stability,
+)
+from .conftest import CORPUS, EXIT_CRITICAL_ANOMALY, EXIT_OK, EXIT_UNEXPECTED, CorpusEntry, run_cli
 
 # ---------------------------------------------------------------------------
 # Helpers

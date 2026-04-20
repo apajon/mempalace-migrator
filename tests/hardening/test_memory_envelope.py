@@ -36,6 +36,8 @@ import pytest
 from tests.adversarial.conftest import CorpusEntry
 from tests.hardening.conftest import BASELINE_CORPUS, load_runtime_envelope
 
+pytestmark = pytest.mark.slow
+
 # ---------------------------------------------------------------------------
 # POSIX guard
 # ---------------------------------------------------------------------------

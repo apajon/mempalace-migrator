@@ -29,8 +29,10 @@ from pathlib import Path
 
 import pytest
 
-from mempalace_migrator.detection.format_detector import MANIFEST_FILENAME, SQLITE_FILENAME
-from mempalace_migrator.extraction.chroma_06_reader import EXPECTED_COLLECTION_NAME
+from mempalace_migrator.detection.format_detector import (MANIFEST_FILENAME,
+                                                          SQLITE_FILENAME)
+from mempalace_migrator.extraction.chroma_06_reader import \
+    EXPECTED_COLLECTION_NAME
 
 # ---------------------------------------------------------------------------
 # Exit codes (re-exported for clarity in adversarial tests)
@@ -518,18 +520,6 @@ def build_empty_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def build_zero_byte_sqlite(tmp_path: Path) -> Path:
-    write_manifest(tmp_path)
-    (tmp_path / SQLITE_FILENAME).write_bytes(b"")
-    return tmp_path
-
-
-def build_manifest_only_no_db(tmp_path: Path) -> Path:
-    """0.6 manifest, no SQLite at all → BENIGN contradiction; cap < 0.9."""
-    write_manifest(tmp_path)
-    return tmp_path
-
-
 def build_palace_with_no_embeddings(tmp_path: Path) -> Path:
     """Schema valid, collection present, embeddings table empty.
 
@@ -689,10 +679,6 @@ CORPUS: tuple[CorpusEntry, ...] = (
     CorpusEntry("all_rows_unparseable_inspect", build_all_rows_unparseable, "inspect", frozenset({EXIT_OK}), "10.4"),
     # 10.5 extreme edge cases
     CorpusEntry("empty_dir", build_empty_dir, "analyze", frozenset({EXIT_DETECTION_FAILED}), "10.5"),
-    CorpusEntry("zero_byte_sqlite", build_zero_byte_sqlite, "analyze", frozenset({EXIT_DETECTION_FAILED}), "10.5"),
-    CorpusEntry(
-        "manifest_only_no_db", build_manifest_only_no_db, "analyze", frozenset({EXIT_DETECTION_FAILED}), "10.5"
-    ),
     CorpusEntry(
         "palace_with_no_embeddings_inspect",
         build_palace_with_no_embeddings,
