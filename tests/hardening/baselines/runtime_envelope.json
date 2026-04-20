@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "recorded_on": "2026-04-20T17:56:53Z",
+  "recorded_on": "2026-04-20T19:10:40Z",
   "python_version": "3.12",
   "tolerance": {
     "wall_clock_pct": 50,
@@ -9,68 +9,68 @@
   "entries": [
     {
       "cid": "baseline_valid_06_palace",
-      "wall_clock_seconds_p50": 0.1076,
-      "peak_rss_raw": 17824,
+      "wall_clock_seconds_p50": 0.0866,
+      "peak_rss_raw": 18520,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "baseline_valid_06_palace_inspect",
-      "wall_clock_seconds_p50": 0.113,
-      "peak_rss_raw": 17852,
+      "wall_clock_seconds_p50": 0.0912,
+      "peak_rss_raw": 18432,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "blank_embedding_id",
-      "wall_clock_seconds_p50": 0.0975,
-      "peak_rss_raw": 17920,
+      "wall_clock_seconds_p50": 0.0902,
+      "peak_rss_raw": 18484,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "control_chars_in_id",
-      "wall_clock_seconds_p50": 0.0956,
-      "peak_rss_raw": 17904,
+      "wall_clock_seconds_p50": 0.092,
+      "peak_rss_raw": 18476,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "document_missing",
-      "wall_clock_seconds_p50": 0.094,
-      "peak_rss_raw": 17828,
+      "wall_clock_seconds_p50": 0.1088,
+      "peak_rss_raw": 18516,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "document_null_string_value",
-      "wall_clock_seconds_p50": 0.0948,
-      "peak_rss_raw": 17920,
+      "wall_clock_seconds_p50": 0.0896,
+      "peak_rss_raw": 18520,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "document_multiple",
-      "wall_clock_seconds_p50": 0.0853,
-      "peak_rss_raw": 17792,
+      "wall_clock_seconds_p50": 0.0945,
+      "peak_rss_raw": 18480,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "metadata_all_null",
-      "wall_clock_seconds_p50": 0.1093,
-      "peak_rss_raw": 17792,
+      "wall_clock_seconds_p50": 0.1084,
+      "peak_rss_raw": 18476,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "unparseable_metadata_string_value",
-      "wall_clock_seconds_p50": 0.0986,
-      "peak_rss_raw": 17820,
+      "wall_clock_seconds_p50": 0.0855,
+      "peak_rss_raw": 18560,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "duplicate_embedding_ids_inspect",
-      "wall_clock_seconds_p50": 0.1032,
-      "peak_rss_raw": 17920,
+      "wall_clock_seconds_p50": 0.0946,
+      "peak_rss_raw": 18560,
       "peak_rss_platform_note": "linux_kb"
     },
     {
       "cid": "all_rows_unparseable_inspect",
-      "wall_clock_seconds_p50": 0.1228,
-      "peak_rss_raw": 17972,
+      "wall_clock_seconds_p50": 0.0992,
+      "peak_rss_raw": 18688,
       "peak_rss_platform_note": "linux_kb"
     }
   ]
