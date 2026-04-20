@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-20-m10-pass",
+    "last_updated": "2026-04-20-m11-pass",
     "phases": [
         {
             "id": 0,
@@ -479,56 +479,56 @@
                 {
                     "id": "12.1",
                     "label": "TransformedBundle dataclass",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/transformation/__init__.py",
                     "asserts": "frozen dataclass with: collection_name (str), collection_metadata (dict[str, str|int|float|bool]), drawers (tuple[TransformedDrawer, ...]), summary (TransformedSummary). TransformedDrawer holds id (str), document (str), metadata (dict). TransformedSummary holds drawer_count, sample_ids, metadata_keys, wing_room_counts, length_profile (mirrors prototype _analyze_drawers output but typed)."
                 },
                 {
                     "id": "12.2",
                     "label": "Metadata normalisation (port _normalize_metadata)",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/transformation/normalize.py",
                     "asserts": "normalize_metadata(value) -> tuple[dict, list[str]]. Accepts only str/int/float/bool values. Non-string keys, list/dict/None values rejected with issue messages. Returns (normalised_dict, issues). Pure function. Unit-tested for every rejected type."
                 },
                 {
                     "id": "12.3",
                     "label": "Drawer integrity analysis (port _analyze_drawers + _validate_drawer_record)",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/transformation/integrity.py",
                     "asserts": "analyze_drawers(drawers) -> DrawerAnalysis with id_integrity (duplicate_ids, blank_id_records), content_integrity (non_string_document_ids, empty_document_ids, length_profile), metadata_integrity (structural_issue_ids). Each issue is a structured record, not a string."
                 },
                 {
                     "id": "12.4",
                     "label": "transform(ctx) entry point",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/transformation/__init__.py",
                     "asserts": "transform(ctx) -> TransformedBundle. Reads ctx.extracted_data.drawers. Drops drawers with blank ids, non-string documents, unparseable metadata — each drop emits exactly one anomaly with stage='transform' and a new AnomalyType (TRANSFORM_DRAWER_DROPPED, TRANSFORM_METADATA_COERCED). Duplicates are dropped (matching prototype) with anomaly TRANSFORM_DUPLICATE_ID_DROPPED. Stores result on ctx.transformed_data."
                 },
                 {
                     "id": "12.5",
                     "label": "Pipeline wiring",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/core/pipeline.py",
                     "asserts": "step_transform calls transformation.transform(ctx); removes the NOT_IMPLEMENTED anomaly emission. step_transform raises TransformError (new MigratorError subclass) on unrecoverable failure (e.g. extracted_data is None). Records stage as executed in ctx.stage_results."
                 },
                 {
                     "id": "12.6",
                     "label": "AnomalyType registration",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/core/context.py",
                     "asserts": "new enum members under '# --- Transformation ---' section: TRANSFORM_DRAWER_DROPPED, TRANSFORM_METADATA_COERCED, TRANSFORM_DUPLICATE_ID_DROPPED, TRANSFORM_INPUT_MISSING. Closed-registry contract preserved."
                 },
                 {
                     "id": "12.7",
                     "label": "Report section",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/reporting/report_builder.py",
                     "asserts": "report['transformation'] returns {drawer_count, sample_ids, metadata_keys, wing_room_counts, length_profile, dropped_count} when ctx.transformed_data is non-None; remains None otherwise. text_renderer adds a Transformation section."
                 },
                 {
                     "id": "12.8",
                     "label": "Purity contract test",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/test_transformation.py",
                     "asserts": "AST walk over src/mempalace_migrator/transformation/ asserts no `import chromadb`, no `open(`, no `Path.write_*`, no subprocess. Same structural ban as M8.1 logging discipline, scoped to the writer ban."
                 }
@@ -540,9 +540,6 @@
             "status": "done",
             "priority": "critical",
             "description": "Implement step_reconstruct: the only writer in the pipeline. Builds a fresh ChromaDB 1.5.7 palace at ctx.target_path from ctx.transformed_data via the public chromadb client API. Strictly atomic: any failure cleans up the partial target_path. Source material: import_drawers + ensure_target_is_safe in mempalace-mcp-bridge:scripts/palace_reconstruction_prototype.py.",
-            "design_doc": "tests/M10_RECONSTRUCTION_DESIGN.md",
-            "exit_gate_checklist": "tests/M10_RECONSTRUCTION_DESIGN.md#12-exit-gate-checklist-what-m10-done-means",
-            "implementation_status": "done — 743 tests passing (352 core + 332 adversarial + 59 hardening). Production modules: reconstruction/_safety.py, _types.py, _manifest.py, _writer.py (sole module-level chromadb import — AST-asserted), reconstructor.py. Pipeline wiring: step_reconstruct + MIGRATE_PIPELINE + PIPELINES['migrate']. CLI: `migrate SOURCE --target TARGET` subcommand; analyze/inspect continue to refuse --target. Report: REPORT_SCHEMA_VERSION bumped 4→5; reconstruction section structured-or-None; text_renderer adds Reconstruction block. Hardening baselines regenerated (report_signatures.json, runtime_envelope.json) — diff limited to schema_version 4→5 and reconstruct stage skip-reason changing from 'stub' to 'no_target_path'. Tests: 9 new files (safety, manifest, writer, atomicity, pipeline, purity, cli_migrate) + extensions to test_report_builder, test_report_text. Implementation-detail divergence from design: writer coerces empty-dict metadata {} → None before collection.add() because chromadb 1.5.7 rejects empty dicts; preserves drawer count and id set, no anomaly emitted.",
             "depends_on": [
                 12
             ],
@@ -608,7 +605,7 @@
                     "label": "CLI: migrate subcommand",
                     "status": "done",
                     "target_file": "src/mempalace_migrator/cli/main.py",
-                    "asserts": "new `migrate` subcommand: `migrate SOURCE --target TARGET`. --target required (click.Path(file_okay=False, dir_okay=True) — accepts existing dir so safety check returns exit 5 on non-empty target). PIPELINES['migrate'] registered. analyze and inspect continue to refuse --target (no --target option declared). Verified by tests/test_cli_migrate.py (7 tests)."
+                    "asserts": "new `migrate` subcommand: `migrate SOURCE --target TARGET`. --target required (click.Path(file_okay=False, dir_okay=True) -- accepts existing dir so safety check returns exit 5 on non-empty target). PIPELINES['migrate'] registered. analyze and inspect continue to refuse --target (no --target option declared). Verified by tests/test_cli_migrate.py (7 tests)."
                 },
                 {
                     "id": "13.9",
@@ -631,14 +628,20 @@
                     "target_file": "tests/test_reconstruction_atomicity.py",
                     "asserts": "patches _writer.add_in_batches to raise on batch index 1 with BATCH_SIZE=2; asserts ReconstructionError(code='chromadb_batch_insert_failed'), target_path no longer exists on disk (rollback complete), ctx.reconstruction_result is None, RECONSTRUCTION_ROLLBACK + CHROMADB_BATCH_INSERT_FAILED/CRITICAL anomalies emitted. Also covers chromadb_client_failed and chromadb_collection_create_failed rollback paths (7 tests total)."
                 }
-            ]
+            ],
+            "design_doc": "tests/M10_RECONSTRUCTION_DESIGN.md",
+            "exit_gate_checklist": "tests/M10_RECONSTRUCTION_DESIGN.md#12-exit-gate-checklist-what-m10-done-means",
+            "implementation_status": "done — 743 tests passing (352 core + 332 adversarial + 59 hardening). Production modules: reconstruction/_safety.py, _types.py, _manifest.py, _writer.py (sole module-level chromadb import — AST-asserted), reconstructor.py. Pipeline wiring: step_reconstruct + MIGRATE_PIPELINE + PIPELINES['migrate']. CLI: `migrate SOURCE --target TARGET` subcommand; analyze/inspect continue to refuse --target. Report: REPORT_SCHEMA_VERSION bumped 4→5; reconstruction section structured-or-None; text_renderer adds Reconstruction block. Hardening baselines regenerated. Implementation-detail: writer coerces empty-dict metadata {} → None before collection.add() because chromadb 1.5.7 rejects empty dicts; preserves drawer count and id set, no anomaly emitted."
         },
         {
             "id": 14,
             "name": "Target Parity Validation",
-            "status": "todo",
+            "status": "done",
             "priority": "high",
             "description": "Once reconstruction lands, lift target_record_count_parity and target_id_set_parity out of checks_not_performed and add document/metadata/embedding parity checks. Validation never opens the target in write mode. Source material: validate_reconstruction in mempalace-mcp-bridge:scripts/palace_reconstruction_prototype.py.",
+            "design_doc": "tests/M11_PARITY_DESIGN.md",
+            "exit_gate_checklist": "tests/M11_PARITY_DESIGN.md#12-exit-gate-checklist-what-m11-done-means",
+            "implementation_status": "done — all 14 tasks complete, 775 tests green (added 32 new tests). New module: validation/parity.py (5 parity checks, lazy chromadb import inside _open_target_readonly for startup-performance safety). validation/__init__.py branches on ctx.reconstruction_result; _skipped_when_no_reconstruction() returns 5 entries with reason='reconstruction_not_run'. 7 new AnomalyType members under '# --- Validation: target parity ---'. CheckFamily gains 'parity'; SkippedReason gains 'reconstruction_not_run'. EXPLICITLY_NOT_CHECKED shrunk 9→7 (target_record_count_parity + target_id_set_parity removed). Pre-existing IndentationError duplicates in pipeline.py and cli/main.py fixed.",
             "depends_on": [
                 13
             ],
@@ -646,71 +649,110 @@
                 "No retrieval-parity check (out of scope per ROADMAP non_goals)",
                 "No usage-scenario-parity check (out of scope)",
                 "No MCP-runtime check (out of scope)",
-                "No new severities, no new exit codes"
+                "No new severities, no new exit codes",
+                "No embedding-vector numeric equivalence (chromadb 1.x re-derives embeddings — only presence is meaningfully checkable)",
+                "No new top-level report keys, no REPORT_SCHEMA_VERSION bump (M11 only mutates contents of existing keys)",
+                "No baseline regeneration (M12 owns baselines/runtime_envelope.json and baselines/report_signatures.json)",
+                "No --force / --skip-validation / --strict-parity flag"
             ],
             "tasks": [
                 {
                     "id": "14.1",
-                    "label": "Target reader (read-only)",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/validation/target_reader.py",
-                    "asserts": "open_target_readonly(target_path, collection_name) -> iterator of (id, document, metadata, embedding|None). Uses chromadb.PersistentClient + collection.get(limit=500, offset=...) paging. Embeddings included only if accessible; missing-embedding ids surfaced as a separate diagnostic. No collection.add / collection.update / collection.delete call site (AST-checked)."
+                    "label": "AnomalyType registration (do this first — closed registry)",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/core/context.py",
+                    "asserts": "new enum members under '# --- Validation: target parity ---': TARGET_OPEN_FAILED, TARGET_RECORD_COUNT_MISMATCH, TARGET_ID_SET_MISMATCH, TARGET_DOCUMENT_HASH_MISMATCH, TARGET_METADATA_MISMATCH, TARGET_EMBEDDING_MISSING, TARGET_EMBEDDING_PROBE_INCONCLUSIVE. Closed-registry contract preserved (free-form anomaly types still rejected by _coerce_type)."
                 },
                 {
                     "id": "14.2",
-                    "label": "target_record_count_parity check",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
-                    "asserts": "compares collection.count() to ctx.transformed_data.summary.drawer_count. Status passed if equal, failed otherwise with anomaly TARGET_RECORD_COUNT_MISMATCH (severity HIGH) carrying expected/actual."
+                    "label": "Extend CheckFamily and SkippedReason literals",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/_types.py",
+                    "asserts": "CheckFamily Literal gains 'parity'. SkippedReason Literal gains 'reconstruction_not_run' (and keeps 'stage_not_implemented' for backward-compat — no longer emitted)."
                 },
                 {
                     "id": "14.3",
-                    "label": "target_id_set_parity check",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
-                    "asserts": "compares set(target_ids) to set(transformed_ids). Surfaces missing_in_target and unexpected_in_target as evidence (capped at 20 items each, total count in summary). Anomaly TARGET_ID_SET_MISMATCH on failure."
+                    "label": "validation/parity.py — read-only target reader",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/parity.py",
+                    "asserts": "Module-level chromadb import is allowed here (and only here, alongside reconstruction/_writer.py — AST-asserted). _open_target_readonly(target_path, collection_name) returns (client, collection) with Settings(anonymized_telemetry=False, allow_reset=False). _iter_target_records(collection) pages via collection.get(limit=500, offset=N, include=['documents', 'metadatas']). On open failure: single TARGET_OPEN_FAILED/HIGH anomaly, every parity check returns inconclusive."
                 },
                 {
                     "id": "14.4",
-                    "label": "target_document_hash_parity check",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
-                    "asserts": "sha256 over normalised document text per drawer id; compares with transformed_data hashes for shared ids. Anomaly TARGET_DOCUMENT_HASH_MISMATCH per drawer id (capped at 20 reported, total count in summary). Severity HIGH."
+                    "label": "target_record_count_parity (lifted)",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/parity.py",
+                    "asserts": "compares collection.count() to ctx.transformed_data.summary.drawer_count. status='passed' on equality. status='failed' + TARGET_RECORD_COUNT_MISMATCH/HIGH on inequality, evidence data {expected, actual}. status='inconclusive' on target open failure."
                 },
                 {
                     "id": "14.5",
-                    "label": "target_metadata_parity check",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
-                    "asserts": "compares metadata_by_id; surfaces missing_keys_in_target and value-divergence per drawer id. Anomaly TARGET_METADATA_MISMATCH (severity HIGH)."
+                    "label": "target_id_set_parity (lifted)",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/parity.py",
+                    "asserts": "Builds set(transformed_ids) and set(target_ids) via paged scan. status='passed' iff both diffs empty. status='failed' + TARGET_ID_SET_MISMATCH/HIGH; evidence data {missing_in_target_count, unexpected_in_target_count, missing_sample (≤20 sorted), unexpected_sample (≤20 sorted)}. Sample order is deterministic (sorted)."
                 },
                 {
                     "id": "14.6",
-                    "label": "target_embedding_presence check (best-effort)",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/validation/target_parity.py",
-                    "asserts": "if include=['embeddings'] is accessible, missing-embedding ids surfaced. If not accessible (e.g. embedding_function unavailable), check status is inconclusive with reason='embeddings_not_accessible'. Severity capped at MEDIUM (best-effort)."
+                    "label": "target_document_hash_parity (new)",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/parity.py",
+                    "asserts": "sha256 over UTF-8 bytes of drawer.document on both sides; compares on the intersection of id sets only (missing ids already reported by 14.5). status='failed' + TARGET_DOCUMENT_HASH_MISMATCH/HIGH; evidence data {mismatch_count, mismatch_sample (≤20 sorted ids)}. status='inconclusive' on open failure or empty intersection."
                 },
                 {
                     "id": "14.7",
-                    "label": "Lift parity skips",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/validation/__init__.py",
-                    "asserts": "_SKIPPED_RECONSTRUCTION no longer contains target_record_count_parity / target_id_set_parity when ctx.reconstruction_result is non-None. report_builder.EXPLICITLY_NOT_CHECKED loses both entries. Test asserts the two checks now appear in report.validation.checks_executed."
+                    "label": "target_metadata_parity (new)",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/parity.py",
+                    "asserts": "Both sides normalised via meta_for_compare(m) = m or {} so empty-dict transformed metadata compares equal to None returned by chromadb (M10 caveat: writer coerces {} → None). Pure dict equality otherwise. status='failed' + TARGET_METADATA_MISMATCH/HIGH; evidence data {mismatch_count, mismatch_sample (≤20)} where each sample is {id, missing_keys_in_target, extra_keys_in_target, value_diff_keys}. Values themselves NOT echoed (PII / size). status='inconclusive' on open failure or empty intersection."
                 },
                 {
                     "id": "14.8",
-                    "label": "AnomalyType registration",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/core/context.py",
-                    "asserts": "new enum members under '# --- Validation: target parity ---': TARGET_RECORD_COUNT_MISMATCH, TARGET_ID_SET_MISMATCH, TARGET_DOCUMENT_HASH_MISMATCH, TARGET_METADATA_MISMATCH, TARGET_EMBEDDING_MISSING."
+                    "label": "target_embedding_presence (new, best-effort)",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/parity.py",
+                    "asserts": "Probe call collection.get(limit=1, include=['embeddings']). On exception → status='inconclusive' + TARGET_EMBEDDING_PROBE_INCONCLUSIVE/MEDIUM, no further pages. On success → paged scan; ids with None or empty embedding list are recorded. status='failed' + TARGET_EMBEDDING_MISSING/MEDIUM (severity capped at MEDIUM by design — embeddings are re-derivable). Evidence data {missing_count, missing_sample (≤20)}."
                 },
                 {
                     "id": "14.9",
-                    "label": "Read-only invariant test",
-                    "status": "todo",
-                    "target_file": "tests/test_target_parity.py",
-                    "asserts": "hash(target_palace/chroma.sqlite3) before validation == hash after validation. Validation never mutates the target."
+                    "label": "Wire validate() to call run_parity_checks",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/validation/__init__.py",
+                    "asserts": "Replace _SKIPPED_RECONSTRUCTION constant with a callable _skipped_when_no_reconstruction() returning all 5 parity ids with reason='reconstruction_not_run'. validate() branches: if ctx.reconstruction_result is None → checks_not_performed = those 5 entries; else outcomes.extend(run_parity_checks(ctx)) and checks_not_performed = (). validate() still never raises."
+                },
+                {
+                    "id": "14.10",
+                    "label": "Shrink EXPLICITLY_NOT_CHECKED",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/reporting/report_builder.py",
+                    "asserts": "EXPLICITLY_NOT_CHECKED drops 'target_record_count_parity' and 'target_id_set_parity'; new length is 7. The three new parity check ids are NOT added to this list (they are real checks, not disclaimers)."
+                },
+                {
+                    "id": "14.11",
+                    "label": "Tests: parity checks happy/sad paths",
+                    "status": "done",
+                    "target_file": "tests/test_validation_parity.py",
+                    "asserts": "Per check: pass case (built target equals bundle), fail case (mutated target via separately-built ad-hoc dir), inconclusive case (open failure → 5×inconclusive + 1 TARGET_OPEN_FAILED). Embedding-probe inconclusive path tested via monkeypatched collection.get raising on include=['embeddings']. Empty-metadata coercion case (drawer with metadata={} → target stores None → comparator says passed)."
+                },
+                {
+                    "id": "14.12",
+                    "label": "Tests: AST allowlist for chromadb imports + forbidden methods",
+                    "status": "done",
+                    "target_file": "tests/test_reconstruction_purity.py",
+                    "asserts": "Extend (do not fork). Module-level chromadb import allowlist becomes {reconstruction/_writer.py, validation/parity.py}. Walk parity.py and forbid attribute-access call names: add, update, upsert, delete, modify, reset, create_collection, delete_collection, peek. Forbid the literal Settings(allow_reset=True) anywhere in parity.py."
+                },
+                {
+                    "id": "14.13",
+                    "label": "Tests: target mtime invariant",
+                    "status": "done",
+                    "target_file": "tests/test_reconstruction_atomicity.py",
+                    "asserts": "Extend the existing source-byte-identity test to re-hash source/chroma.sqlite3 AFTER step_validate (currently after step_reconstruct only). Add test_validate_target_mtime_invariant: snapshot st_mtime_ns of target/chroma.sqlite3 before step_validate, assert equality after. Platform-skip is allowed only with explicit reason in the skip message."
+                },
+                {
+                    "id": "14.14",
+                    "label": "Tests: validation skip-list shape and report integration",
+                    "status": "done",
+                    "target_file": "tests/test_validation.py + tests/test_report_builder.py + tests/test_cli_migrate.py",
+                    "asserts": "test_validation: when ctx.reconstruction_result is None, checks_not_performed has exactly 5 entries with reason='reconstruction_not_run'. test_report_builder: assert len(EXPLICITLY_NOT_CHECKED)==7 and the two parity literals are absent (and the three new parity ids are NOT added to the list either). test_cli_migrate: a successful migrate yields 5 parity CheckOutcomes with family='parity', all status='passed', confidence_summary.overall_band='HIGH'."
                 }
             ]
         },
@@ -783,10 +825,10 @@
     ],
     "current_focus": {
         "phase_ids": [
-            14
+            15
         ],
-        "label": "M11 Target Parity Validation — pending",
-        "reason": "M10 complete and reviewed PASS (743 tests green; 9 new test files; hardening baselines regenerated to schema v5; source byte-identity proven; mid-batch rollback proven). reconstruction/ module fully implemented with strict chromadb isolation (only _writer.py imports chromadb at module level — AST-asserted). M11 must lift target_record_count_parity and target_id_set_parity out of checks_not_performed and add document/metadata/embedding parity checks; validation never opens the target in write mode.",
-        "next_milestone": "M11 Target Parity Validation"
+        "label": "M12 Write-Path Adversarial + Hardening — implementation pending",
+        "reason": "M11 Target Parity Validation complete and all exit gate criteria met (775 tests green). M12 must extend the M7 adversarial corpus and M8 hardening baseline envelope to cover the write path: transform/reconstruct/parity stages need adversarial fixtures (corrupt target dir, incomplete batch write, permission errors) and the hardening baselines need a migrate-success entry.",
+        "next_milestone": "M12 Write-Path Adversarial + Hardening"
     }
 }
