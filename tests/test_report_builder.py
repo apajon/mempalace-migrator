@@ -86,10 +86,10 @@ def _abort(stage: str = "detect") -> PipelineAbort:
 # --- Contract / schema ----------------------------------------------------
 
 
-def test_report_schema_version_is_3(tmp_path):
+def test_report_schema_version_is_4(tmp_path):
     ctx = _ctx(tmp_path)
     rep = build_report(ctx)
-    assert rep["schema_version"] == REPORT_SCHEMA_VERSION == 3
+    assert rep["schema_version"] == REPORT_SCHEMA_VERSION == 4
 
 
 def test_report_top_level_keys_are_stable(tmp_path):
@@ -102,7 +102,7 @@ def test_explicitly_not_checked_unchanged(tmp_path):
     ctx = _ctx(tmp_path)
     rep = build_report(ctx)
     assert rep["explicitly_not_checked"] == list(EXPLICITLY_NOT_CHECKED)
-    assert len(rep["explicitly_not_checked"]) == 7
+    assert len(rep["explicitly_not_checked"]) == 9
 
 
 def test_report_is_json_safe_strict(tmp_path):
@@ -292,6 +292,7 @@ def test_confidence_summary_unknown_when_nothing_ran(tmp_path):
     conf = rep["confidence_summary"]
     assert conf["detection"] is None
     assert conf["extraction"] is None
+    assert conf["validation"] is None
     assert conf["overall_band"] == "UNKNOWN"
 
 
@@ -342,7 +343,7 @@ def test_confidence_summary_unknown_when_only_detection_ran(tmp_path):
 def test_confidence_summary_rule_field_is_stable(tmp_path):
     ctx = _ctx(tmp_path)
     rep = build_report(ctx)
-    assert rep["confidence_summary"]["rule"] == "overall = weakest_band(detection, extraction)"
+    assert rep["confidence_summary"]["rule"] == "overall = weakest_band(detection, extraction, validation)"
 
 
 # --- Consistency invariant ------------------------------------------------
@@ -382,6 +383,20 @@ def test_failure_inconsistency_not_injected_when_critical_present(tmp_path):
 
 def test_failure_inconsistency_does_not_mutate_ctx(tmp_path):
     """ctx.anomalies must not be modified by the consistency invariant."""
+    ctx = _ctx(tmp_path)
+    abort = _abort("detect")
+    before = len(ctx.anomalies)
+    build_report(ctx, failure=abort)
+    assert len(ctx.anomalies) == before  # ctx unchanged
+
+
+def test_failure_inconsistency_anomaly_counted_in_summary(tmp_path):
+    """The injected meta-anomaly must appear in anomaly_summary totals."""
+    ctx = _ctx(tmp_path)
+    abort = _abort("detect")
+    rep = build_report(ctx, failure=abort)
+    assert rep["anomaly_summary"]["total"] == 1
+    assert rep["anomaly_summary"]["by_stage"].get("report", 0) == 1
     ctx = _ctx(tmp_path)
     abort = _abort("detect")
     before = len(ctx.anomalies)

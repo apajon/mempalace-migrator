@@ -44,8 +44,9 @@ def _minimal_report(**overrides: Any) -> dict[str, Any]:
         "confidence_summary": {
             "detection": None,
             "extraction": None,
+            "validation": None,
             "overall_band": "UNKNOWN",
-            "rule": "overall = weakest_band(detection, extraction)",
+            "rule": "overall = weakest_band(detection, extraction, validation)",
         },
         "anomalies": [],
         "anomaly_summary": {
