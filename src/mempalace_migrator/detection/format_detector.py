@@ -323,7 +323,7 @@ def _classify_from_manifest(
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
-        evidence.append(Evidence("manifest", "inconsistency", f"manifest is not valid JSON: {exc!r}"))
+        evidence.append(Evidence("manifest", "inconsistency", f"manifest cannot be parsed as JSON: {exc!r}"))
         return UNKNOWN, 0.0, None
 
     if not isinstance(data, dict):
