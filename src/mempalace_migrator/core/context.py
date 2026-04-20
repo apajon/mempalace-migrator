@@ -144,6 +144,15 @@ class AnomalyType(str, Enum):
     TARGET_MANIFEST_WRITE_FAILED = "target_manifest_write_failed"
     RECONSTRUCTION_ROLLBACK = "reconstruction_rollback"
 
+    # --- Validation: target parity ---
+    TARGET_OPEN_FAILED = "target_open_failed"
+    TARGET_RECORD_COUNT_MISMATCH = "target_record_count_mismatch"
+    TARGET_ID_SET_MISMATCH = "target_id_set_mismatch"
+    TARGET_DOCUMENT_HASH_MISMATCH = "target_document_hash_mismatch"
+    TARGET_METADATA_MISMATCH = "target_metadata_mismatch"
+    TARGET_EMBEDDING_MISSING = "target_embedding_missing"
+    TARGET_EMBEDDING_PROBE_INCONCLUSIVE = "target_embedding_probe_inconclusive"
+
     # --- Reporting meta ---
     REPORT_INCONSISTENT_FAILURE = "report_inconsistent_failure"
 

@@ -18,11 +18,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from mempalace_migrator.core.context import (SEVERITIES, AnomalyType,
-                                             MigrationContext, Severity)
+from mempalace_migrator.core.context import SEVERITIES, AnomalyType, MigrationContext, Severity
 from mempalace_migrator.core.errors import MigratorError
-from mempalace_migrator.detection.format_detector import \
-    SUPPORTED_VERSION_PAIRS
+from mempalace_migrator.detection.format_detector import SUPPORTED_VERSION_PAIRS
 
 REPORT_SCHEMA_VERSION = 5
 TOOL_VERSION = "0.1.0"
@@ -35,8 +33,6 @@ EXPLICITLY_NOT_CHECKED: tuple[str, ...] = (
     "target_chromadb_default_embedding_function_match",
     "hnsw_segment_file_integrity",
     "manifest_authenticity",
-    "target_record_count_parity",
-    "target_id_set_parity",
 )
 
 # Stable top-level keys contract. Tested by test_report_top_level_keys_are_stable.
@@ -374,11 +370,6 @@ def _make_inconsistent_failure_dict(failure: MigratorError) -> dict[str, Any]:
                 "detail": "expected >=1 CRITICAL anomaly for the failing stage",
                 "data": {
                     "failure_stage": failure.stage,
-                    "failure_code": failure.code,
-                },
-            }
-        ],
-    }
                     "failure_code": failure.code,
                 },
             }

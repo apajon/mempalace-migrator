@@ -11,9 +11,9 @@ from typing import Any, Literal
 
 from mempalace_migrator.core.context import AnomalyEvidence, Severity
 
-CheckFamily = Literal["structural", "consistency", "heuristic"]
+CheckFamily = Literal["structural", "consistency", "heuristic", "parity"]
 CheckStatus = Literal["passed", "failed", "inconclusive"]
-SkippedReason = Literal["stage_not_implemented", "input_missing", "out_of_scope_m5"]
+SkippedReason = Literal["stage_not_implemented", "input_missing", "out_of_scope_m5", "reconstruction_not_run"]
 
 
 @dataclass(frozen=True)
