@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
+from mempalace_migrator.core.context import (AnomalyEvidence, AnomalyLocation,
+                                             AnomalyType, MigrationContext,
+                                             Severity)
 from mempalace_migrator.core.errors import MigratorError, PipelineAbort
 from mempalace_migrator.detection.format_detector import (
-    CHROMA_0_6,
-    MIN_ACCEPT_CONFIDENCE,
-    SUPPORTED_VERSION_PAIRS,
-    detect_palace_format,
-)
+    CHROMA_0_6, MIN_ACCEPT_CONFIDENCE, SUPPORTED_VERSION_PAIRS,
+    detect_palace_format)
 from mempalace_migrator.extraction.chroma_06_reader import extract
 from mempalace_migrator.reporting.report_builder import build_report
+from mempalace_migrator.validation import validate
 
 Step = Callable[[MigrationContext], None]
 
@@ -152,18 +152,32 @@ def step_reconstruct(ctx: MigrationContext) -> None:
 
 
 def step_validate(ctx: MigrationContext) -> None:
-    ctx.add_anomaly(
-        type=AnomalyType.NOT_IMPLEMENTED,
-        severity=Severity.LOW,
-        message="validation step is a stub; no validation performed",
-        location=AnomalyLocation(stage="validate", source="pipeline"),
-        evidence=[
-            AnomalyEvidence(
-                kind="observation",
-                detail="stub stage executed; no work performed",
-            ),
-        ],
-    )
+    """Run validation checks. Never raises MigratorError.
+
+    If extraction did not run, emits NOT_IMPLEMENTED/LOW (consistent with
+    other stub stages) and leaves ctx.validation_result as None so the
+    stages section marks it 'skipped'.
+
+    When extraction is available, runs structural, consistency, and
+    heuristic checks; sets ctx.validation_result to the result.
+    Anomalies are emitted by each check family directly into ctx.
+    """
+    if ctx.extracted_data is None:
+        ctx.add_anomaly(
+            type=AnomalyType.NOT_IMPLEMENTED,
+            severity=Severity.LOW,
+            message="validation step skipped; extraction result not available",
+            location=AnomalyLocation(stage="validate", source="pipeline"),
+            evidence=[
+                AnomalyEvidence(
+                    kind="observation",
+                    detail="extracted_data is None; no validation checks run",
+                ),
+            ],
+        )
+        return
+
+    ctx.validation_result = validate(ctx)
 
 
 ANALYZE_PIPELINE: tuple[Step, ...] = (step_detect, step_extract)
@@ -215,6 +229,12 @@ def run_pipeline(ctx: MigrationContext, steps: tuple[Step, ...]) -> MigrationCon
         raise MigratorError(
             stage="report",
             code="report_build_failed",
+            summary=f"report builder raised: {report_exc!r}",
+        ) from report_exc
+
+    if failure is not None:
+        raise failure
+    return ctx
             summary=f"report builder raised: {report_exc!r}",
         ) from report_exc
 
