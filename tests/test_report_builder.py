@@ -86,10 +86,10 @@ def _abort(stage: str = "detect") -> PipelineAbort:
 # --- Contract / schema ----------------------------------------------------
 
 
-def test_report_schema_version_is_4(tmp_path):
+def test_report_schema_version_is_5(tmp_path):
     ctx = _ctx(tmp_path)
     rep = build_report(ctx)
-    assert rep["schema_version"] == REPORT_SCHEMA_VERSION == 4
+    assert rep["schema_version"] == REPORT_SCHEMA_VERSION == 5
 
 
 def test_report_top_level_keys_are_stable(tmp_path):
@@ -404,10 +404,103 @@ def test_failure_inconsistency_anomaly_counted_in_summary(tmp_path):
     assert len(ctx.anomalies) == before  # ctx unchanged
 
 
-def test_failure_inconsistency_anomaly_counted_in_summary(tmp_path):
+def test_failure_inconsistency_anomaly_counted_in_summary_final(tmp_path):
     """The injected meta-anomaly must appear in anomaly_summary totals."""
     ctx = _ctx(tmp_path)
     abort = _abort("detect")
     rep = build_report(ctx, failure=abort)
     assert rep["anomaly_summary"]["total"] == 1
     assert rep["anomaly_summary"]["by_stage"].get("report", 0) == 1
+
+
+# --- M10: reconstruction section ------------------------------------------
+
+from mempalace_migrator.reconstruction._types import ReconstructionResult  # noqa: E402
+
+
+def _fake_reconstruction_result(tmp_path: Path) -> ReconstructionResult:
+    manifest = tmp_path / "reconstruction-target-manifest.json"
+    manifest.write_text("{}")
+    return ReconstructionResult(
+        target_path=tmp_path,
+        collection_name="memory_palace",
+        imported_count=42,
+        batch_size=500,
+        chromadb_version="1.5.7",
+        target_manifest_path=manifest,
+    )
+
+
+def test_reconstruction_section_none_when_not_run(tmp_path):
+    ctx = _ctx(tmp_path)
+    rep = build_report(ctx)
+    assert rep["reconstruction"] is None
+
+
+def test_reconstruction_section_populated_when_result_set(tmp_path):
+    ctx = _ctx(tmp_path)
+    ctx.reconstruction_result = _fake_reconstruction_result(tmp_path)
+    rep = build_report(ctx)
+    rr = rep["reconstruction"]
+    assert rr is not None
+    assert rr["collection_name"] == "memory_palace"
+    assert rr["imported_count"] == 42
+    assert rr["batch_size"] == 500
+    assert rr["chromadb_version"] == "1.5.7"
+
+
+def test_reconstruction_section_target_path_is_string(tmp_path):
+    ctx = _ctx(tmp_path)
+    ctx.reconstruction_result = _fake_reconstruction_result(tmp_path)
+    rep = build_report(ctx)
+    assert isinstance(rep["reconstruction"]["target_path"], str)
+    assert isinstance(rep["reconstruction"]["target_manifest_path"], str)
+
+
+def test_top_level_keys_unchanged_with_reconstruction(tmp_path):
+    """REPORT_TOP_LEVEL_KEYS must include 'reconstruction' and must not grow."""
+    ctx = _ctx(tmp_path)
+    ctx.reconstruction_result = _fake_reconstruction_result(tmp_path)
+    rep = build_report(ctx)
+    assert set(rep.keys()) == set(REPORT_TOP_LEVEL_KEYS)
+
+
+# --- M10: stage_skip_reasons → skipped status ---------------------------
+
+
+def test_stages_section_skipped_via_skip_reasons(tmp_path):
+    """stage_skip_reasons['reconstruct'] = 'no_target_path' →
+    reconstruct stage is 'skipped' with the reason string (not 'stub')."""
+    ctx = _ctx(tmp_path)
+    ctx.stage_skip_reasons["reconstruct"] = "no_target_path"
+    rep = build_report(ctx)
+    stage = rep["stages"]["reconstruct"]
+    assert stage["status"] == "skipped"
+    assert stage["skipped_reason"] == "no_target_path"
+
+
+def test_stages_section_no_not_implemented_anomaly_needed(tmp_path):
+    """With stage_skip_reasons set, we do NOT need a NOT_IMPLEMENTED anomaly
+    for the stage to be 'skipped'."""
+    ctx = _ctx(tmp_path)
+    ctx.stage_skip_reasons["reconstruct"] = "no_target_path"
+    rep = build_report(ctx)
+    assert rep["stages"]["reconstruct"]["status"] == "skipped"
+    not_implemented_for_reconstruct = [
+        a for a in rep["anomalies"] if a["stage"] == "reconstruct" and a["type"] == "not_implemented"
+    ]
+    assert not_implemented_for_reconstruct == []
+    assert stage["skipped_reason"] == "no_target_path"
+
+
+def test_stages_section_no_not_implemented_anomaly_needed(tmp_path):
+    """With stage_skip_reasons set, we do NOT need a NOT_IMPLEMENTED anomaly
+    for the stage to be 'skipped'."""
+    ctx = _ctx(tmp_path)
+    ctx.stage_skip_reasons["reconstruct"] = "no_target_path"
+    rep = build_report(ctx)
+    assert rep["stages"]["reconstruct"]["status"] == "skipped"
+    not_implemented_for_reconstruct = [
+        a for a in rep["anomalies"] if a["stage"] == "reconstruct" and a["type"] == "not_implemented"
+    ]
+    assert not_implemented_for_reconstruct == []

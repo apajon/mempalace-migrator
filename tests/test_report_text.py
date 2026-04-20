@@ -228,3 +228,39 @@ def test_render_text_handles_no_stages():
     del rep["stages"]
     out = render_text(rep)
     assert isinstance(out, str)
+
+
+# --- M10: Reconstruction block -------------------------------------------
+
+
+def test_render_text_reconstruction_block_when_present():
+    rep = _minimal_report()
+    rep["reconstruction"] = {
+        "target_path": "/abs/target",
+        "collection_name": "memory_palace",
+        "imported_count": 7,
+        "batch_size": 500,
+        "chromadb_version": "1.5.7",
+        "target_manifest_path": "/abs/target/reconstruction-target-manifest.json",
+    }
+    out = render_text(rep)
+    assert "reconstruction:" in out.lower()
+    assert "7" in out
+    assert "memory_palace" in out
+    assert "1.5.7" in out
+
+
+def test_render_text_no_reconstruction_block_when_absent():
+    rep = _minimal_report()
+    rep["reconstruction"] = None
+    out = render_text(rep)
+    assert "reconstruction:" not in out.lower()
+
+
+def test_render_text_reconstruction_block_missing_key():
+    """render_text must not raise if reconstruction key is absent."""
+    rep = _minimal_report()
+    # No 'reconstruction' key at all (old report format / partial report).
+    rep.pop("reconstruction", None)
+    out = render_text(rep)
+    assert isinstance(out, str)

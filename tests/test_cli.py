@@ -316,10 +316,13 @@ class TestInspect:
     def test_stubs_surfaced_in_report_not_crashes(self, tmp_path: Path) -> None:
         make_valid_palace(tmp_path)
         result = CliRunner().invoke(cli, ["--json-output", "inspect", str(tmp_path)])
+        assert result.exit_code == EXIT_OK
         report = json.loads(result.output)
-        # Transform and reconstruct stubs emit NOT_IMPLEMENTED anomalies.
-        anomaly_types = {a["type"] for a in report.get("anomalies", [])}
-        assert "not_implemented" in anomaly_types
+        # M10: transform and reconstruct are fully implemented; reconstruct is
+        # skipped (no target_path) so no NOT_IMPLEMENTED anomalies are emitted.
+        # Verify the report is well-formed and contains no crash.
+        assert isinstance(report, dict)
+        assert "anomalies" in report
 
     def test_quiet_suppresses_output(self, tmp_path: Path) -> None:
         make_valid_palace(tmp_path)
@@ -422,6 +425,13 @@ def test_pipelines_registry_contains_analyze_and_inspect() -> None:
 def test_pipelines_registry_values_are_non_empty_tuples() -> None:
     from mempalace_migrator.core.pipeline import PIPELINES
 
+    for name, pipeline in PIPELINES.items():
+        assert isinstance(pipeline, tuple), f"{name!r} pipeline is not a tuple"
+        assert len(pipeline) > 0, f"{name!r} pipeline is empty"
+
+    for name, pipeline in PIPELINES.items():
+        assert isinstance(pipeline, tuple), f"{name!r} pipeline is not a tuple"
+        assert len(pipeline) > 0, f"{name!r} pipeline is empty"
     for name, pipeline in PIPELINES.items():
         assert isinstance(pipeline, tuple), f"{name!r} pipeline is not a tuple"
         assert len(pipeline) > 0, f"{name!r} pipeline is empty"

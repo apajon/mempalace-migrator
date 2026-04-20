@@ -292,7 +292,7 @@ def test_run_pipeline_does_not_raise_on_validation_failures(tmp_path):
 def test_report_schema_version_is_4(tmp_path):
     ctx = _ctx(tmp_path)
     rep = build_report(ctx)
-    assert rep["schema_version"] == REPORT_SCHEMA_VERSION == 4
+    assert rep["schema_version"] == REPORT_SCHEMA_VERSION == 5
 
 
 def test_report_validation_section_populated_when_extraction_ran(tmp_path):
@@ -525,6 +525,25 @@ def test_validation_band_low_when_high_severity_check_fails(tmp_path):
     )
     result = validate(ctx)
     assert result.confidence_band == "LOW"
+
+
+def test_validate_result_is_json_safe(tmp_path):
+    ctx = _ctx(tmp_path)
+    ctx.detected_format = _detection_result()
+    ctx.extracted_data = _extraction_result()
+    result = validate(ctx)
+    serialised = json.dumps(result.to_dict())
+    assert isinstance(serialised, str)
+    assert result.confidence_band == "LOW"
+
+
+def test_validate_result_is_json_safe(tmp_path):
+    ctx = _ctx(tmp_path)
+    ctx.detected_format = _detection_result()
+    ctx.extracted_data = _extraction_result()
+    result = validate(ctx)
+    serialised = json.dumps(result.to_dict())
+    assert isinstance(serialised, str)
 
 
 def test_validate_result_is_json_safe(tmp_path):
