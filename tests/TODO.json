@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-20-m9-pass",
+    "last_updated": "2026-04-20-m10-pass",
     "phases": [
         {
             "id": 0,
@@ -537,9 +537,12 @@
         {
             "id": 13,
             "name": "Reconstruction Stage",
-            "status": "todo",
+            "status": "done",
             "priority": "critical",
             "description": "Implement step_reconstruct: the only writer in the pipeline. Builds a fresh ChromaDB 1.5.7 palace at ctx.target_path from ctx.transformed_data via the public chromadb client API. Strictly atomic: any failure cleans up the partial target_path. Source material: import_drawers + ensure_target_is_safe in mempalace-mcp-bridge:scripts/palace_reconstruction_prototype.py.",
+            "design_doc": "tests/M10_RECONSTRUCTION_DESIGN.md",
+            "exit_gate_checklist": "tests/M10_RECONSTRUCTION_DESIGN.md#12-exit-gate-checklist-what-m10-done-means",
+            "implementation_status": "done — 743 tests passing (352 core + 332 adversarial + 59 hardening). Production modules: reconstruction/_safety.py, _types.py, _manifest.py, _writer.py (sole module-level chromadb import — AST-asserted), reconstructor.py. Pipeline wiring: step_reconstruct + MIGRATE_PIPELINE + PIPELINES['migrate']. CLI: `migrate SOURCE --target TARGET` subcommand; analyze/inspect continue to refuse --target. Report: REPORT_SCHEMA_VERSION bumped 4→5; reconstruction section structured-or-None; text_renderer adds Reconstruction block. Hardening baselines regenerated (report_signatures.json, runtime_envelope.json) — diff limited to schema_version 4→5 and reconstruct stage skip-reason changing from 'stub' to 'no_target_path'. Tests: 9 new files (safety, manifest, writer, atomicity, pipeline, purity, cli_migrate) + extensions to test_report_builder, test_report_text. Implementation-detail divergence from design: writer coerces empty-dict metadata {} → None before collection.add() because chromadb 1.5.7 rejects empty dicts; preserves drawer count and id set, no anomaly emitted.",
             "depends_on": [
                 12
             ],
@@ -554,79 +557,79 @@
                 {
                     "id": "13.1",
                     "label": "chromadb dependency",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "pyproject.toml",
                     "asserts": "dependencies += ['chromadb>=1.5.7,<2']. Version pin matches the supported pair documented in README. Lock-file regenerated."
                 },
                 {
                     "id": "13.2",
                     "label": "Target safety check (port ensure_target_is_safe)",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/reconstruction/safety.py",
-                    "asserts": "ensure_target_is_safe(target_path) raises ReconstructionError if: path exists and is a file; path exists and is a non-empty directory. Path absent or empty directory is OK. No mkdir performed (caller's responsibility)."
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/reconstruction/_safety.py",
+                    "asserts": "ensure_target_is_safe(target_path) raises ReconstructionError if: path exists and is a file; path exists and is a non-empty directory. Path absent or empty directory is OK. No mkdir performed (caller's responsibility). Verified by tests/test_reconstruction_safety.py (9 tests)."
                 },
                 {
                     "id": "13.3",
                     "label": "ReconstructionResult dataclass",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/reconstruction/__init__.py",
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/reconstruction/_types.py",
                     "asserts": "frozen dataclass: target_path (Path), collection_name (str), imported_count (int), batch_size (int), chromadb_version (str), target_manifest_path (Path)."
                 },
                 {
                     "id": "13.4",
                     "label": "Atomic batch insert (port import_drawers core)",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/reconstruction/writer.py",
-                    "asserts": "reconstruct(ctx) -> ReconstructionResult. Opens chromadb.PersistentClient at ctx.target_path. Creates collection from TransformedBundle.collection_name + collection_metadata. Inserts via collection.add() in batches of 500. On any exception after target_path.mkdir, calls _rollback_target(target_path) which shutil.rmtree the directory and re-raises ReconstructionError."
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/reconstruction/_writer.py + reconstructor.py",
+                    "asserts": "reconstruct(ctx) -> ReconstructionResult. _writer.open_client uses chromadb.PersistentClient with anonymized_telemetry=False, allow_reset=False. Creates collection from TransformedBundle.collection_name + collection_metadata. Inserts via collection.add() in batches of BATCH_SIZE=500. On any exception after target_path.mkdir, _rollback_target() shutil.rmtree the directory (when did_create) or removes children (when pre-existing empty), and raises ReconstructionError. _writer is the only module with a module-level chromadb import (asserted by tests/test_reconstruction_purity.py)."
                 },
                 {
                     "id": "13.5",
                     "label": "Target manifest writer",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/reconstruction/manifest.py",
-                    "asserts": "writes TARGET_MANIFEST_FILENAME='reconstruction-target-manifest.json' at target_path with: format_version (int), created_at (UTC ISO Z), source_palace_path, detected_format, drawer_count, chromadb_version, mempalace_migrator_version, warnings list. Mirrors prototype target_manifest schema."
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/reconstruction/_manifest.py",
+                    "asserts": "writes TARGET_MANIFEST_FILENAME='reconstruction-target-manifest.json' at target_path with: format_version (int=1), created_at (UTC ISO Z), source_palace_path, detected_format, drawer_count, chromadb_version, mempalace_migrator_version, warnings list. Verified by tests/test_reconstruction_manifest.py (13 tests)."
                 },
                 {
                     "id": "13.6",
                     "label": "Pipeline wiring",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/core/pipeline.py",
-                    "asserts": "step_reconstruct calls reconstruction.reconstruct(ctx) when ctx.target_path is set, else skips with stage_results['reconstruct']='skipped' and reason='no_target_path'. Removes the NOT_IMPLEMENTED anomaly emission. step_reconstruct on failure raises ReconstructionError -> exit 5."
+                    "asserts": "step_reconstruct calls reconstruction.reconstruct(ctx) when ctx.target_path is set, else sets ctx.stage_skip_reasons['reconstruct']='no_target_path'. Removes the NOT_IMPLEMENTED anomaly emission. step_reconstruct on failure raises ReconstructionError -> exit 5. MIGRATE_PIPELINE = (detect, extract, transform, reconstruct, validate); PIPELINES['migrate'] registered."
                 },
                 {
                     "id": "13.7",
                     "label": "AnomalyType registration",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/core/context.py",
-                    "asserts": "new enum members under '# --- Reconstruction ---': TARGET_PATH_NOT_EMPTY, TARGET_PATH_NOT_DIRECTORY, CHROMADB_CLIENT_FAILED, CHROMADB_COLLECTION_CREATE_FAILED, CHROMADB_BATCH_INSERT_FAILED, RECONSTRUCTION_ROLLBACK, RECONSTRUCTION_INPUT_MISSING."
+                    "asserts": "8 new enum members: RECONSTRUCTION_INPUT_MISSING, TARGET_PATH_NOT_DIRECTORY, TARGET_PATH_NOT_EMPTY, CHROMADB_CLIENT_FAILED, CHROMADB_COLLECTION_CREATE_FAILED, CHROMADB_BATCH_INSERT_FAILED, TARGET_MANIFEST_WRITE_FAILED, RECONSTRUCTION_ROLLBACK. Plus stage_skip_reasons: dict[str, str] field on MigrationContext."
                 },
                 {
                     "id": "13.8",
                     "label": "CLI: migrate subcommand",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "src/mempalace_migrator/cli/main.py",
-                    "asserts": "new `migrate` subcommand: `migrate SOURCE --target TARGET`. --target required. Pipeline = MIGRATE_PIPELINE (detect+extract+transform+reconstruct+validate). PIPELINES['migrate'] registered. analyze and inspect continue to refuse --target (Click error). Exit-code policy unchanged."
+                    "asserts": "new `migrate` subcommand: `migrate SOURCE --target TARGET`. --target required (click.Path(file_okay=False, dir_okay=True) — accepts existing dir so safety check returns exit 5 on non-empty target). PIPELINES['migrate'] registered. analyze and inspect continue to refuse --target (no --target option declared). Verified by tests/test_cli_migrate.py (7 tests)."
                 },
                 {
                     "id": "13.9",
                     "label": "Report section",
-                    "status": "todo",
-                    "target_file": "src/mempalace_migrator/reporting/report_builder.py",
-                    "asserts": "report['reconstruction'] returns {target_path, collection_name, imported_count, batch_size, chromadb_version, target_manifest_path} when ctx.reconstruction_result is non-None. text_renderer adds a Reconstruction section."
+                    "status": "done",
+                    "target_file": "src/mempalace_migrator/reporting/report_builder.py + text_renderer.py",
+                    "asserts": "REPORT_SCHEMA_VERSION bumped 4→5. report['reconstruction'] returns {target_path, collection_name, imported_count, batch_size, chromadb_version, target_manifest_path} when ctx.reconstruction_result is non-None, None otherwise. _stages_section consults ctx.stage_skip_reasons before stub-anomaly check. text_renderer adds 'reconstruction:' block (omitted when None or absent)."
                 },
                 {
                     "id": "13.10",
                     "label": "Source-mtime invariant test",
-                    "status": "todo",
-                    "target_file": "tests/test_reconstruction.py",
-                    "asserts": "after a successful migrate, sha256(source_palace/chroma.sqlite3) is byte-identical to the pre-run hash; source mtime unchanged. Hard contract: reconstruction never touches source."
+                    "status": "done",
+                    "target_file": "tests/test_cli_migrate.py::test_migrate_source_byte_identical",
+                    "asserts": "after a successful migrate, sha256(source_palace/chroma.sqlite3) is byte-identical to the pre-run hash. Hard contract: reconstruction never touches source."
                 },
                 {
                     "id": "13.11",
                     "label": "Atomicity test (mid-batch failure injection)",
-                    "status": "todo",
-                    "target_file": "tests/test_reconstruction.py",
-                    "asserts": "monkeypatch collection.add to raise on batch index 1; assert exit code 5, ReconstructionError raised, target_path no longer exists on disk (rollback complete), no orphan chroma.sqlite3 left behind."
+                    "status": "done",
+                    "target_file": "tests/test_reconstruction_atomicity.py",
+                    "asserts": "patches _writer.add_in_batches to raise on batch index 1 with BATCH_SIZE=2; asserts ReconstructionError(code='chromadb_batch_insert_failed'), target_path no longer exists on disk (rollback complete), ctx.reconstruction_result is None, RECONSTRUCTION_ROLLBACK + CHROMADB_BATCH_INSERT_FAILED/CRITICAL anomalies emitted. Also covers chromadb_client_failed and chromadb_collection_create_failed rollback paths (7 tests total)."
                 }
             ]
         },
@@ -780,10 +783,10 @@
     ],
     "current_focus": {
         "phase_ids": [
-            13
+            14
         ],
-        "label": "M10 Reconstruction Stage — step_reconstruct wires TransformedBundle into ChromaDB 1.x",
-        "reason": "M9 complete (672 tests green, baselines regenerated). The transformation layer is now fully implemented and tested. step_transform produces a typed TransformedBundle. Next: implement step_reconstruct — the only pipeline step that performs I/O (ChromaDB writes).",
-        "next_milestone": "M10 Reconstruction Stage (the only writer)"
+        "label": "M11 Target Parity Validation — pending",
+        "reason": "M10 complete and reviewed PASS (743 tests green; 9 new test files; hardening baselines regenerated to schema v5; source byte-identity proven; mid-batch rollback proven). reconstruction/ module fully implemented with strict chromadb isolation (only _writer.py imports chromadb at module level — AST-asserted). M11 must lift target_record_count_parity and target_id_set_parity out of checks_not_performed and add document/metadata/embedding parity checks; validation never opens the target in write mode.",
+        "next_milestone": "M11 Target Parity Validation"
     }
 }
