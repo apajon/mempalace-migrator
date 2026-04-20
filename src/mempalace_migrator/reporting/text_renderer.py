@@ -46,6 +46,15 @@ def render_text(report: dict[str, Any]) -> str:
             f"rate={stats.get('parse_rate')}"
         )
 
+    transformation = report.get("transformation")
+    if transformation:
+        lines.append(
+            f"transformation: drawers={transformation.get('drawer_count')} "
+            f"dropped={transformation.get('dropped_count')} "
+            f"coerced={transformation.get('coerced_count')} "
+            f"metadata_keys={len(transformation.get('metadata_keys', []))}"
+        )
+
     conf = report.get("confidence_summary")
     if conf:
         lines.append(f"confidence_overall: {conf.get('overall_band')}")

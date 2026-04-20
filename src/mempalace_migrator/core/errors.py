@@ -41,5 +41,13 @@ class ExtractionError(MigratorError):
     """Raised by the extraction layer on any structural or data anomaly."""
 
 
+class TransformError(MigratorError):
+    """Raised by the transformation layer on unrecoverable input failure."""
+
+
+class ReconstructionError(MigratorError):
+    """Raised by the reconstruction layer on any write failure."""
+
+
 class PipelineAbort(MigratorError):
     """Raised by pipeline orchestration when a precondition fails."""

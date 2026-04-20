@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
-from mempalace_migrator.core.errors import MigratorError, PipelineAbort
+from mempalace_migrator.core.errors import MigratorError, PipelineAbort, TransformError
 from mempalace_migrator.detection.format_detector import (
     CHROMA_0_6,
     MIN_ACCEPT_CONFIDENCE,
@@ -14,6 +14,7 @@ from mempalace_migrator.detection.format_detector import (
 )
 from mempalace_migrator.extraction.chroma_06_reader import extract
 from mempalace_migrator.reporting.report_builder import build_report
+from mempalace_migrator.transformation import transform
 from mempalace_migrator.validation import validate
 
 Step = Callable[[MigrationContext], None]
@@ -123,18 +124,25 @@ def step_extract(ctx: MigrationContext) -> None:
 
 
 def step_transform(ctx: MigrationContext) -> None:
-    ctx.add_anomaly(
-        type=AnomalyType.NOT_IMPLEMENTED,
-        severity=Severity.LOW,
-        message="transformation step is a stub; no transformation performed",
-        location=AnomalyLocation(stage="transform", source="pipeline"),
-        evidence=[
-            AnomalyEvidence(
-                kind="observation",
-                detail="stub stage executed; no work performed",
-            ),
-        ],
-    )
+    if ctx.extracted_data is None:
+        ctx.add_anomaly(
+            type=AnomalyType.TRANSFORM_INPUT_MISSING,
+            severity=Severity.CRITICAL,
+            message="extraction did not produce a result; cannot transform",
+            location=AnomalyLocation(stage="transform", source="pipeline"),
+            evidence=[
+                AnomalyEvidence(
+                    kind="observation",
+                    detail="ctx.extracted_data is None at transform entry",
+                ),
+            ],
+        )
+        raise TransformError(
+            stage="transform",
+            code="transform_input_missing",
+            summary="extraction did not produce a result; cannot transform",
+        )
+    ctx.transformed_data = transform(ctx)
 
 
 def step_reconstruct(ctx: MigrationContext) -> None:

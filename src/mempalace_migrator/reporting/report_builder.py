@@ -112,7 +112,7 @@ def build_report(ctx: MigrationContext, *, failure: MigratorError | None = None)
         "detection": _detection_section(ctx),
         "extraction": _extraction_section(ctx),
         "extraction_stats": _extraction_stats(ctx),
-        "transformation": None,
+        "transformation": _transformation_section(ctx),
         "reconstruction": None,
         "validation": _validation_section(ctx),
         "stages": _stages_section(ctx),
@@ -166,6 +166,31 @@ def _extraction_stats(ctx: MigrationContext) -> dict[str, Any] | None:
         "parsed_rows": parsed,
         "failed_rows": failed,
         "parse_rate": round(parse_rate, 4),
+    }
+
+
+def _transformation_section(ctx: MigrationContext) -> dict[str, Any] | None:
+    tb = ctx.transformed_data
+    if tb is None:
+        return None
+    s = tb.summary
+    return {
+        "collection_name": tb.collection_name,
+        "drawer_count": s.drawer_count,
+        "dropped_count": s.dropped_count,
+        "coerced_count": s.coerced_count,
+        "sample_ids": list(s.sample_ids),
+        "metadata_keys": list(s.metadata_keys),
+        "wing_room_counts": [
+            {"wing": w, "room": r, "count": c} for w, r, c in s.wing_room_counts
+        ],
+        "length_profile": {
+            "min": s.length_profile.min,
+            "max": s.length_profile.max,
+            "mean": s.length_profile.mean,
+            "p50": s.length_profile.p50,
+            "p95": s.length_profile.p95,
+        },
     }
 
 

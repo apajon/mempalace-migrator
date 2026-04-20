@@ -128,8 +128,29 @@ class AnomalyType(str, Enum):
     VALIDATION_EMPTY_SOURCE = "validation_empty_source"
     VALIDATION_DOMINANT_FAILURE_TYPE = "validation_dominant_failure_type"
 
+    # --- Transformation ---
+    TRANSFORM_INPUT_MISSING = "transform_input_missing"
+    TRANSFORM_DRAWER_DROPPED = "transform_drawer_dropped"
+    TRANSFORM_METADATA_COERCED = "transform_metadata_coerced"
+    TRANSFORM_DUPLICATE_ID_DROPPED = "transform_duplicate_id_dropped"
+
     # --- Reporting meta ---
     REPORT_INCONSISTENT_FAILURE = "report_inconsistent_failure"
+
+
+# Closed set of per-drawer drop reasons used with TRANSFORM_DRAWER_DROPPED.
+# Stored here (not as enum members) so both transformation/ and test code
+# can reference them without adding noise to the AnomalyType registry.
+TRANSFORM_DROP_REASONS: frozenset[str] = frozenset(
+    {
+        "invalid_id",
+        "invalid_document",
+        "non_string_metadata_key",
+        "metadata_value_none",
+        "unsupported_metadata_value_type",
+        "non_finite_float",
+    }
+)
 
 
 def _coerce_type(value: "AnomalyType | str") -> AnomalyType:
