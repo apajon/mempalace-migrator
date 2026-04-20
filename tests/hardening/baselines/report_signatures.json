@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-04-20T16:09:45Z",
+  "entries": [
+    {
+      "cid": "baseline_valid_06_palace",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "none",
+        "anomaly_counts_by_type": {},
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "baseline_valid_06_palace_inspect",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "low",
+        "anomaly_counts_by_type": {
+          "not_implemented": 2
+        },
+        "stages_executed": [
+          "detect",
+          "extract",
+          "validate"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "blank_embedding_id",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "blank_embedding_id": 2
+        },
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "control_chars_in_id",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "control_chars_in_id": 1
+        },
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "document_missing",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "orphan_embedding": 1
+        },
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "document_null_string_value",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "document_string_value_null": 1
+        },
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "document_multiple",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "document_multiple": 1
+        },
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "metadata_all_null",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "metadata_all_null": 1
+        },
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "unparseable_metadata_string_value",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "none",
+        "anomaly_counts_by_type": {},
+        "stages_executed": [
+          "detect",
+          "extract"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "duplicate_embedding_ids_inspect",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "duplicate_embedding_ids": 1,
+          "not_implemented": 2,
+          "validation_anomaly_missing_for_failed_row": 1,
+          "validation_dominant_failure_type": 1,
+          "validation_parse_rate_implausible": 1
+        },
+        "stages_executed": [
+          "detect",
+          "extract",
+          "validate"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "cid": "all_rows_unparseable_inspect",
+      "signature": {
+        "schema_version": 4,
+        "outcome": "success",
+        "top_severity": "high",
+        "anomaly_counts_by_type": {
+          "not_implemented": 2,
+          "orphan_embedding": 5,
+          "validation_dominant_failure_type": 1,
+          "validation_parse_rate_implausible": 1
+        },
+        "stages_executed": [
+          "detect",
+          "extract",
+          "validate"
+        ],
+        "exit_code": 0
+      }
+    }
+  ]
+}
