@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "recorded_on": "2026-04-20T16:09:45Z",
+  "recorded_on": "2026-04-20T17:56:53Z",
   "entries": [
     {
       "cid": "baseline_valid_06_palace",
@@ -23,11 +23,12 @@
         "outcome": "success",
         "top_severity": "low",
         "anomaly_counts_by_type": {
-          "not_implemented": 2
+          "not_implemented": 1
         },
         "stages_executed": [
           "detect",
           "extract",
+          "transform",
           "validate"
         ],
         "exit_code": 0
@@ -151,7 +152,7 @@
         "top_severity": "high",
         "anomaly_counts_by_type": {
           "duplicate_embedding_ids": 1,
-          "not_implemented": 2,
+          "not_implemented": 1,
           "validation_anomaly_missing_for_failed_row": 1,
           "validation_dominant_failure_type": 1,
           "validation_parse_rate_implausible": 1
@@ -159,6 +160,7 @@
         "stages_executed": [
           "detect",
           "extract",
+          "transform",
           "validate"
         ],
         "exit_code": 0
@@ -171,7 +173,7 @@
         "outcome": "success",
         "top_severity": "high",
         "anomaly_counts_by_type": {
-          "not_implemented": 2,
+          "not_implemented": 1,
           "orphan_embedding": 5,
           "validation_dominant_failure_type": 1,
           "validation_parse_rate_implausible": 1
@@ -179,6 +181,7 @@
         "stages_executed": [
           "detect",
           "extract",
+          "transform",
           "validate"
         ],
         "exit_code": 0
