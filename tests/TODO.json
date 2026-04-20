@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-20-m7-conditional-pass-resolved",
+    "last_updated": "2026-04-20-m8-done",
     "phases": [
         {
             "id": 0,
@@ -411,43 +411,56 @@
         {
             "id": 11,
             "name": "Final Hardening",
-            "status": "todo",
+            "status": "done",
             "priority": "medium",
-            "description": "Stability and performance improvements",
+            "description": "Lock the runtime envelope (logging, latency, memory, repeatability) of the M1–M7 system as a recorded baseline so future drift is detected, not discovered. M8 adds NO new pipeline stages, NO new exit codes, NO new severities, NO new AnomalyType values, NO new CLI flags, NO production print/logging. Strategy fixed in tests/M8_HARDENING_DESIGN.md.",
             "depends_on": [
                 10
             ],
+            "design_doc": "tests/M8_HARDENING_DESIGN.md",
+            "exit_gate_checklist": "tests/M8_HARDENING_DESIGN.md#9-exit-gate-checklist-what-m8-done-means",
+            "implementation_status": "done — tests/hardening/ implemented, baselines committed, 718 tests green",
             "tasks": [
                 {
                     "id": "11.1",
-                    "label": "Logging cleanup",
-                    "status": "todo"
+                    "label": "Logging discipline (structural ban via AST walk)",
+                    "status": "done",
+                    "target_file": "tests/hardening/test_logging_discipline.py",
+                    "asserts": "no print / logging / sys.std*.write call site under src/mempalace_migrator/; click.echo call sites confined to a documented allow-list in cli/main.py; --quiet stdout empty; --json-output stdout is exactly one JSON document.",
+                    "note": "Production code is currently free of these call sites (verified during M8 design pass). M8.1 turns the current good state into a pinned structural contract via an ast walk — NOT a regex — so aliased imports (from logging import getLogger as gl) are also caught."
                 },
                 {
                     "id": "11.2",
-                    "label": "Performance baseline",
-                    "status": "todo"
+                    "label": "Performance baseline (drift detector, not benchmark)",
+                    "status": "done",
+                    "target_file": "tests/hardening/test_performance_baseline.py",
+                    "asserts": "for every entry in baselines/runtime_envelope.json: median wall-clock over 5 subprocess runs <= recorded_p50 * (1 + tolerance.wall_clock_pct/100). Default tolerance: 50%.",
+                    "note": "Subprocess only — never CliRunner. Absolute wall-clock numbers are forbidden; only delta-vs-baseline is asserted. No flake-retry. Re-baseline only via tests/hardening/rebaseline.py in a reviewed PR."
                 },
                 {
                     "id": "11.3",
-                    "label": "Memory handling",
-                    "status": "todo"
+                    "label": "Memory envelope (peak RSS via getrusage)",
+                    "status": "done",
+                    "target_file": "tests/hardening/test_memory_envelope.py",
+                    "asserts": "for every entry in baselines/runtime_envelope.json: observed_peak_rss <= recorded_peak_rss * (1 + tolerance.rss_bytes_pct/100). Default tolerance: 25%.",
+                    "note": "POSIX-only via resource.getrusage(RUSAGE_CHILDREN). Non-POSIX skip is asserted (no silent skips). tracemalloc inside the test process is forbidden — the CLI runs in a subprocess."
                 },
                 {
                     "id": "11.4",
-                    "label": "Stability validation",
-                    "status": "todo"
+                    "label": "Stability invariants (the actual M8 exit gate)",
+                    "status": "done",
+                    "target_file": "tests/hardening/test_stability_invariants.py",
+                    "asserts": "nine invariants over the baseline corpus: report-signature stability, schema stability, exit-code stability, wall-clock envelope, RSS envelope, logging discipline (re-asserted), stdout/stderr discipline (re-asserted), all M7 invariants still hold on the baseline subset, determinism (two consecutive runs produce identical signature modulo run_id/started_at).",
+                    "note": "Imports M7 invariants from a refactored tests/adversarial/_invariants.py module — test-only refactor, no M7 assertion changes. Drift fails the suite; there is no --update-baseline flag."
                 }
             ]
         }
     ],
     "current_focus": {
-        "phase_ids": [
-            10
-        ],
-        "label": "Adversarial Testing (M7) — design fixed, implementation pending",
-        "reason": "Strategy fixed in tests/M7_ADVERSARIAL_DESIGN.md. M7 adds NO new pipeline stages, NO new exit codes, NO new severities, NO new features. It builds tests/adversarial/ with five category files (10.1–10.5) plus a cross-cutting invariants file (10.6) that enforces the nine M7-exit-gate invariants over the entire adversarial corpus. Per-category tests pin (exit_code, evidence.kind, location.stage); the invariants file enforces no-exit-10, no-traceback, no-silent-CRITICAL, schema stability, JSON safety, anomaly well-formedness, forbidden vocabulary, stage attribution, and stdout/stderr discipline. Defects surfaced by M7 are fixed in the owning production module — not absorbed by test code. M7 is PASS only when every checklist item in M7_ADVERSARIAL_DESIGN.md §9 holds; partial completion is CONDITIONAL FAIL, not in-progress. M8 (Final Hardening) MUST NOT start until then.",
-        "design_doc": "tests/M7_ADVERSARIAL_DESIGN.md",
-        "implementation_status": "none — tests/adversarial/ does not exist yet"
+        "phase_ids": [],
+        "label": "All milestones complete — M8 exit gate satisfied",
+        "reason": "M8 exit gate is satisfied. tests/hardening/ implemented with 4 sub-task files (11.1–11.4), tests/adversarial/_invariants.py (shared check functions), tests/hardening/rebaseline.py, and committed baseline files. Full suite green at 718 passed. All nine M7 invariants re-enforced on the 11-entry baseline corpus. AST walk finds zero forbidden call sites in src/. Two-run determinism check passes. Wall-clock and RSS envelopes pass with fresh-subprocess RUSAGE_CHILDREN isolation.",
+        "design_doc": "tests/M8_HARDENING_DESIGN.md",
+        "implementation_status": "done — 718 tests green"
     }
 }
