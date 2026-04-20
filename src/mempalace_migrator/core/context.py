@@ -112,6 +112,22 @@ class AnomalyType(str, Enum):
     # --- Stub stages ---
     NOT_IMPLEMENTED = "not_implemented"
 
+    # --- Validation: structural ---
+    VALIDATION_EXTRACTION_ARITHMETIC = "validation_extraction_arithmetic"
+    VALIDATION_DRAWER_MALFORMED = "validation_drawer_malformed"
+    VALIDATION_DETECTION_EVIDENCE_EMPTY = "validation_detection_evidence_empty"
+
+    # --- Validation: consistency ---
+    VALIDATION_DUPLICATE_ID_MISSED_BY_EXTRACTION = "validation_duplicate_id_missed_by_extraction"
+    VALIDATION_ID_PARSED_AND_FAILED = "validation_id_parsed_and_failed"
+    VALIDATION_ANOMALY_MISSING_FOR_FAILED_ROW = "validation_anomaly_missing_for_failed_row"
+    VALIDATION_STAGE_RESULT_INCONSISTENT = "validation_stage_result_inconsistent"
+
+    # --- Validation: heuristic ---
+    VALIDATION_PARSE_RATE_IMPLAUSIBLE = "validation_parse_rate_implausible"
+    VALIDATION_EMPTY_SOURCE = "validation_empty_source"
+    VALIDATION_DOMINANT_FAILURE_TYPE = "validation_dominant_failure_type"
+
     # --- Reporting meta ---
     REPORT_INCONSISTENT_FAILURE = "report_inconsistent_failure"
 
