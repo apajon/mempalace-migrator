@@ -24,7 +24,7 @@ from mempalace_migrator.core.errors import MigratorError
 from mempalace_migrator.detection.format_detector import \
     SUPPORTED_VERSION_PAIRS
 
-REPORT_SCHEMA_VERSION = 4
+REPORT_SCHEMA_VERSION = 5
 TOOL_VERSION = "0.1.0"
 
 EXPLICITLY_NOT_CHECKED: tuple[str, ...] = (
@@ -115,7 +115,7 @@ def build_report(ctx: MigrationContext, *, failure: MigratorError | None = None)
         "extraction": _extraction_section(ctx),
         "extraction_stats": _extraction_stats(ctx),
         "transformation": _transformation_section(ctx),
-        "reconstruction": None,
+        "reconstruction": _reconstruction_section(ctx),
         "validation": _validation_section(ctx),
         "stages": _stages_section(ctx),
         "confidence_summary": _confidence_summary(ctx),
@@ -183,9 +183,7 @@ def _transformation_section(ctx: MigrationContext) -> dict[str, Any] | None:
         "coerced_count": s.coerced_count,
         "sample_ids": list(s.sample_ids),
         "metadata_keys": list(s.metadata_keys),
-        "wing_room_counts": [
-            {"wing": w, "room": r, "count": c} for w, r, c in s.wing_room_counts
-        ],
+        "wing_room_counts": [{"wing": w, "room": r, "count": c} for w, r, c in s.wing_room_counts],
         "length_profile": {
             "min": s.length_profile.min,
             "max": s.length_profile.max,
@@ -196,12 +194,27 @@ def _transformation_section(ctx: MigrationContext) -> dict[str, Any] | None:
     }
 
 
+def _reconstruction_section(ctx: MigrationContext) -> dict[str, Any] | None:
+    rr = ctx.reconstruction_result
+    if rr is None:
+        return None
+    return {
+        "target_path": str(rr.target_path),
+        "collection_name": rr.collection_name,
+        "imported_count": rr.imported_count,
+        "batch_size": rr.batch_size,
+        "chromadb_version": rr.chromadb_version,
+        "target_manifest_path": str(rr.target_manifest_path),
+    }
+
+
 def _stages_section(ctx: MigrationContext) -> dict[str, Any]:
     """Dense map of every pipeline stage → execution status.
 
     Status rules (evaluated in priority order):
       aborted  — a CRITICAL anomaly exists for this stage.
-      skipped  — a NOT_IMPLEMENTED/LOW anomaly exists for this stage (stub).
+      skipped  — ctx.stage_skip_reasons has an entry for this stage, OR a
+                 NOT_IMPLEMENTED/LOW anomaly exists (legacy stub path).
       executed — the stage's result slot on ctx is non-None.
       not_run  — none of the above.
     """
@@ -221,18 +234,22 @@ def _stages_section(ctx: MigrationContext) -> dict[str, Any]:
     stages: dict[str, Any] = {}
     for stage in _PIPELINE_STAGES:
         result_present = result_slots[stage] is not None
+        skip_reason = ctx.stage_skip_reasons.get(stage)  # e.g. "no_target_path"
         if stage in critical_stages:
             status = "aborted"
-        elif stage in stub_stages:
+        elif skip_reason is not None or stage in stub_stages:
             status = "skipped"
         elif result_present:
             status = "executed"
         else:
             status = "not_run"
+        skipped_reason_out: str | None = None
+        if status == "skipped":
+            skipped_reason_out = skip_reason if skip_reason is not None else "stub"
         stages[stage] = {
             "status": status,
             "result_present": result_present,
-            "skipped_reason": "stub" if status == "skipped" else None,
+            "skipped_reason": skipped_reason_out,
         }
     return stages
 
@@ -357,6 +374,11 @@ def _make_inconsistent_failure_dict(failure: MigratorError) -> dict[str, Any]:
                 "detail": "expected >=1 CRITICAL anomaly for the failing stage",
                 "data": {
                     "failure_stage": failure.stage,
+                    "failure_code": failure.code,
+                },
+            }
+        ],
+    }
                     "failure_code": failure.code,
                 },
             }

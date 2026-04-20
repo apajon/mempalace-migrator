@@ -134,6 +134,16 @@ class AnomalyType(str, Enum):
     TRANSFORM_METADATA_COERCED = "transform_metadata_coerced"
     TRANSFORM_DUPLICATE_ID_DROPPED = "transform_duplicate_id_dropped"
 
+    # --- Reconstruction ---
+    RECONSTRUCTION_INPUT_MISSING = "reconstruction_input_missing"
+    TARGET_PATH_NOT_DIRECTORY = "target_path_not_directory"
+    TARGET_PATH_NOT_EMPTY = "target_path_not_empty"
+    CHROMADB_CLIENT_FAILED = "chromadb_client_failed"
+    CHROMADB_COLLECTION_CREATE_FAILED = "chromadb_collection_create_failed"
+    CHROMADB_BATCH_INSERT_FAILED = "chromadb_batch_insert_failed"
+    TARGET_MANIFEST_WRITE_FAILED = "target_manifest_write_failed"
+    RECONSTRUCTION_ROLLBACK = "reconstruction_rollback"
+
     # --- Reporting meta ---
     REPORT_INCONSISTENT_FAILURE = "report_inconsistent_failure"
 
@@ -320,9 +330,15 @@ class MigrationContext:
 
     detected_format: Any = None  # DetectionResult
     extracted_data: Any = None  # ExtractionResult
-    transformed_data: Any = None  # stub
-    reconstruction_result: Any = None  # stub
-    validation_result: Any = None  # stub
+    transformed_data: Any = None  # TransformedBundle
+    reconstruction_result: Any = None  # ReconstructionResult | None
+    validation_result: Any = None  # ValidationResult
+
+    # Stage-level skip reasons set by pipeline steps when a stage is
+    # intentionally skipped (not a stub). key = stage name, value = reason
+    # string surfaced in report stages section. Not used for errors — those
+    # are anomalies.
+    stage_skip_reasons: dict[str, str] = field(default_factory=dict)
 
     anomalies: list[Anomaly] = field(default_factory=list)
     report: dict[str, Any] = field(default_factory=dict)

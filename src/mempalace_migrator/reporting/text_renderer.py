@@ -55,6 +55,15 @@ def render_text(report: dict[str, Any]) -> str:
             f"metadata_keys={len(transformation.get('metadata_keys', []))}"
         )
 
+    reconstruction = report.get("reconstruction")
+    if reconstruction:
+        lines.append(
+            f"reconstruction: imported={reconstruction.get('imported_count')} "
+            f"collection={reconstruction.get('collection_name')!r} "
+            f"chromadb={reconstruction.get('chromadb_version')} "
+            f"target={reconstruction.get('target_path')}"
+        )
+
     conf = report.get("confidence_summary")
     if conf:
         lines.append(f"confidence_overall: {conf.get('overall_band')}")

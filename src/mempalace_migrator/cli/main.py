@@ -27,7 +27,8 @@ import click
 
 from mempalace_migrator.core.context import MigrationContext
 from mempalace_migrator.core.errors import MigratorError
-from mempalace_migrator.core.pipeline import ANALYZE_PIPELINE, FULL_PIPELINE, run_pipeline
+from mempalace_migrator.core.pipeline import (ANALYZE_PIPELINE, FULL_PIPELINE,
+                                              MIGRATE_PIPELINE, run_pipeline)
 from mempalace_migrator.reporting.text_renderer import render_text
 
 # --- Exit codes -----------------------------------------------------------
@@ -165,6 +166,49 @@ def inspect(click_ctx: click.Context, source: Path) -> None:
     sys.exit(code)
 
 
+@cli.command()
+@click.argument(
+    "source",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+)
+@click.option(
+    "--target",
+    required=True,
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    help="Destination directory for the new ChromaDB 1.x palace. Must not exist (or be empty).",
+)
+@click.pass_context
+def migrate(click_ctx: click.Context, source: Path, target: Path) -> None:
+    """Migrate SOURCE palace to a ChromaDB 1.x palace at TARGET.
+
+    Runs the full pipeline: detect → extract → transform → reconstruct → validate.
+    The source palace is never modified. TARGET must not exist (or be empty); any
+    partial write is rolled back on failure.
+
+    Exit codes follow the standard table (see --help at group level).
+    """
+    obj = click_ctx.obj
+    ctx = MigrationContext(source_path=source, target_path=target)
+    raised: MigratorError | None = None
+    try:
+        run_pipeline(ctx, MIGRATE_PIPELINE)
+    except MigratorError as exc:
+        raised = exc
+        click.echo(
+            f"[migrator:{ctx.short_run_id}] [{exc.stage}] ERROR: {exc.summary}",
+            err=True,
+        )
+        for d in exc.details:
+            click.echo(f"        - {d}", err=True)
+        if obj["debug"]:
+            raise
+
+    if not obj["quiet"]:
+        _emit_report(ctx, obj["json_output"])
+
+    sys.exit(_decide_exit_code(ctx.report, raised))
+
+
 @cli.command("report")
 @click.argument(
     "report_file",
@@ -245,6 +289,11 @@ def main() -> None:
         sys.exit(exc.code)
     except click.Abort:
         click.echo("Aborted.", err=True)
+        sys.exit(EXIT_USAGE_ERROR)
+
+
+if __name__ == "__main__":
+    main()
         sys.exit(EXIT_USAGE_ERROR)
 
 

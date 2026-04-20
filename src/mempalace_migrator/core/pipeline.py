@@ -13,6 +13,7 @@ from mempalace_migrator.detection.format_detector import (
     CHROMA_0_6, MIN_ACCEPT_CONFIDENCE, SUPPORTED_VERSION_PAIRS,
     detect_palace_format)
 from mempalace_migrator.extraction.chroma_06_reader import extract
+from mempalace_migrator.reconstruction import reconstruct
 from mempalace_migrator.reporting.report_builder import build_report
 from mempalace_migrator.transformation import transform
 from mempalace_migrator.validation import validate
@@ -146,18 +147,46 @@ def step_transform(ctx: MigrationContext) -> None:
 
 
 def step_reconstruct(ctx: MigrationContext) -> None:
-    ctx.add_anomaly(
-        type=AnomalyType.NOT_IMPLEMENTED,
-        severity=Severity.LOW,
-        message="reconstruction step is a stub; no target palace created",
-        location=AnomalyLocation(stage="reconstruct", source="pipeline"),
-        evidence=[
-            AnomalyEvidence(
-                kind="observation",
-                detail="stub stage executed; no work performed",
-            ),
-        ],
-    )
+    """Reconstruct a ChromaDB 1.x palace at ctx.target_path.
+
+    Skipped (no anomaly, stage recorded as 'skipped') when ctx.target_path
+    is None — this is the normal path for analyze/inspect pipelines.
+    Raises ReconstructionError (exit 5) on any write failure after performing
+    a full rollback of the partial target directory.
+    """
+    if ctx.target_path is None:
+        ctx.stage_skip_reasons["reconstruct"] = "no_target_path"
+        return
+
+    if ctx.transformed_data is None or len(ctx.transformed_data.drawers) == 0:
+        drawer_count = 0 if ctx.transformed_data is not None else -1
+        ctx.add_anomaly(
+            type=AnomalyType.RECONSTRUCTION_INPUT_MISSING,
+            severity=Severity.CRITICAL,
+            message="reconstruction requires a non-empty TransformedBundle; none available",
+            location=AnomalyLocation(stage="reconstruct", source="pipeline"),
+            evidence=[
+                AnomalyEvidence(
+                    kind="observation",
+                    detail=(
+                        "ctx.transformed_data is None"
+                        if drawer_count == -1
+                        else f"ctx.transformed_data.drawers is empty (drawer_count=0)"
+                    ),
+                    data={"drawer_count": drawer_count},
+                ),
+            ],
+        )
+        from mempalace_migrator.core.errors import \
+            ReconstructionError  # noqa: PLC0415
+
+        raise ReconstructionError(
+            stage="reconstruct",
+            code="reconstruction_input_missing",
+            summary="reconstruction requires a non-empty TransformedBundle; none available",
+        )
+
+    ctx.reconstruction_result = reconstruct(ctx)
 
 
 def step_validate(ctx: MigrationContext) -> None:
@@ -197,12 +226,20 @@ FULL_PIPELINE: tuple[Step, ...] = (
     step_reconstruct,
     step_validate,
 )
+MIGRATE_PIPELINE: tuple[Step, ...] = (
+    step_detect,
+    step_extract,
+    step_transform,
+    step_reconstruct,
+    step_validate,
+)
 
 # Registry mapping CLI subcommand names to their pipeline tuples.
 # The CLI uses these references; it does not assemble pipelines itself.
 PIPELINES: dict[str, tuple[Step, ...]] = {
     "analyze": ANALYZE_PIPELINE,
     "inspect": FULL_PIPELINE,
+    "migrate": MIGRATE_PIPELINE,
 }
 
 
@@ -245,6 +282,12 @@ def run_pipeline(ctx: MigrationContext, steps: tuple[Step, ...]) -> MigrationCon
         raise MigratorError(
             stage="report",
             code="report_build_failed",
+            summary=f"report builder raised: {report_exc!r}",
+        ) from report_exc
+
+    if failure is not None:
+        raise failure
+    return ctx
             summary=f"report builder raised: {report_exc!r}",
         ) from report_exc
 
