@@ -12,9 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mempalace_migrator.core.context import (AnomalyEvidence, AnomalyLocation,
-                                             AnomalyType, MigrationContext,
-                                             Severity)
+from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
 
 if TYPE_CHECKING:
     from mempalace_migrator.validation._types import CheckOutcome
@@ -79,9 +77,7 @@ def _check_unique_drawer_ids(ctx: MigrationContext, er: Any) -> "CheckOutcome":
 
 
 def _check_ids_not_in_both_parsed_and_failed(ctx: MigrationContext, er: Any) -> "CheckOutcome":
-    from mempalace_migrator.validation._types import (_make_failed,
-                                                      _make_inconclusive,
-                                                      _make_passed)
+    from mempalace_migrator.validation._types import _make_failed, _make_inconclusive, _make_passed
 
     check_id = "consistency.id_not_in_both_parsed_and_failed"
 
@@ -123,9 +119,7 @@ def _check_failed_rows_have_anomalies(ctx: MigrationContext, er: Any) -> "CheckO
     Rows where both are None are skipped (inconclusive for those rows only);
     if ALL rows are unidentifiable, the whole check is inconclusive.
     """
-    from mempalace_migrator.validation._types import (_make_failed,
-                                                      _make_inconclusive,
-                                                      _make_passed)
+    from mempalace_migrator.validation._types import _make_failed, _make_inconclusive, _make_passed
 
     check_id = "consistency.failed_row_has_anomaly"
 
@@ -139,12 +133,8 @@ def _check_failed_rows_have_anomalies(ctx: MigrationContext, er: Any) -> "CheckO
 
     # Build lookup sets from anomalies at stage=extract.
     extract_anomalies = [a for a in ctx.anomalies if a.stage == "extract"]
-    anomaly_pks: set[int] = {
-        a.location.record_pk for a in extract_anomalies if a.location.record_pk is not None
-    }
-    anomaly_ids: set[str] = {
-        a.location.identifier for a in extract_anomalies if a.location.identifier is not None
-    }
+    anomaly_pks: set[int] = {a.location.record_pk for a in extract_anomalies if a.location.record_pk is not None}
+    anomaly_ids: set[str] = {a.location.identifier for a in extract_anomalies if a.location.identifier is not None}
 
     unmatched: list[dict[str, Any]] = []
     skipped_unidentifiable = 0
@@ -153,9 +143,8 @@ def _check_failed_rows_have_anomalies(ctx: MigrationContext, er: Any) -> "CheckO
         if row.embedding_pk is None and row.embedding_id is None:
             skipped_unidentifiable += 1
             continue
-        matched = (
-            (row.embedding_pk is not None and row.embedding_pk in anomaly_pks)
-            or (row.embedding_id is not None and row.embedding_id in anomaly_ids)
+        matched = (row.embedding_pk is not None and row.embedding_pk in anomaly_pks) or (
+            row.embedding_id is not None and row.embedding_id in anomaly_ids
         )
         if not matched:
             unmatched.append(
@@ -189,11 +178,7 @@ def _check_failed_rows_have_anomalies(ctx: MigrationContext, er: Any) -> "CheckO
                 kind="count",
                 detail=(
                     f"{identifiable} identifiable failed_rows all have matching extract anomalies"
-                    + (
-                        f" ({skipped_unidentifiable} unidentifiable skipped)"
-                        if skipped_unidentifiable
-                        else ""
-                    )
+                    + (f" ({skipped_unidentifiable} unidentifiable skipped)" if skipped_unidentifiable else "")
                 ),
             ),
         )
@@ -234,14 +219,6 @@ def _check_stage_result_coherence(ctx: MigrationContext) -> "CheckOutcome":
         return _make_failed(check_id, "consistency", Severity.HIGH, evidence)
 
     return _make_passed(
-        check_id,
-        "consistency",
-        Severity.HIGH,
-        AnomalyEvidence(
-            kind="observation",
-            detail="stage result slots are mutually coherent",
-        ),
-    )
         check_id,
         "consistency",
         Severity.HIGH,

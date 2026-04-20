@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from mempalace_migrator.core.context import (AnomalyEvidence, AnomalyLocation,
-                                             AnomalyType, MigrationContext,
-                                             Severity)
+from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
 from mempalace_migrator.core.errors import MigratorError, PipelineAbort
 from mempalace_migrator.detection.format_detector import (
-    CHROMA_0_6, MIN_ACCEPT_CONFIDENCE, SUPPORTED_VERSION_PAIRS,
-    detect_palace_format)
+    CHROMA_0_6,
+    MIN_ACCEPT_CONFIDENCE,
+    SUPPORTED_VERSION_PAIRS,
+    detect_palace_format,
+)
 from mempalace_migrator.extraction.chroma_06_reader import extract
 from mempalace_migrator.reporting.report_builder import build_report
 from mempalace_migrator.validation import validate
@@ -189,6 +190,13 @@ FULL_PIPELINE: tuple[Step, ...] = (
     step_validate,
 )
 
+# Registry mapping CLI subcommand names to their pipeline tuples.
+# The CLI uses these references; it does not assemble pipelines itself.
+PIPELINES: dict[str, tuple[Step, ...]] = {
+    "analyze": ANALYZE_PIPELINE,
+    "inspect": FULL_PIPELINE,
+}
+
 
 def run_pipeline(ctx: MigrationContext, steps: tuple[Step, ...]) -> MigrationContext:
     failure: MigratorError | None = None
@@ -229,12 +237,6 @@ def run_pipeline(ctx: MigrationContext, steps: tuple[Step, ...]) -> MigrationCon
         raise MigratorError(
             stage="report",
             code="report_build_failed",
-            summary=f"report builder raised: {report_exc!r}",
-        ) from report_exc
-
-    if failure is not None:
-        raise failure
-    return ctx
             summary=f"report builder raised: {report_exc!r}",
         ) from report_exc
 

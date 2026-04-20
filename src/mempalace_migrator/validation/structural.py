@@ -12,9 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mempalace_migrator.core.context import (AnomalyEvidence, AnomalyLocation,
-                                             AnomalyType, MigrationContext,
-                                             Severity)
+from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
 
 if TYPE_CHECKING:
     from mempalace_migrator.validation._types import CheckOutcome
@@ -27,9 +25,7 @@ def run_structural_checks(ctx: MigrationContext) -> list["CheckOutcome"]:
 
     Anomalies are emitted into ctx for every failed check.
     """
-    from mempalace_migrator.validation._types import (CheckOutcome,
-                                                      _make_failed,
-                                                      _make_passed)
+    from mempalace_migrator.validation._types import CheckOutcome, _make_failed, _make_passed
 
     outcomes: list[CheckOutcome] = []
 
@@ -72,10 +68,7 @@ def _check_extraction_arithmetic(ctx: MigrationContext, er: Any) -> "CheckOutcom
     # Arithmetic mismatch detected from outside extraction.
     evidence = AnomalyEvidence(
         kind="count",
-        detail=(
-            f"total={total} != parsed={er.parsed_count} + failed={er.failed_count}; "
-            f"delta={total - expected}"
-        ),
+        detail=(f"total={total} != parsed={er.parsed_count} + failed={er.failed_count}; " f"delta={total - expected}"),
         data={
             "total": total,
             "parsed": er.parsed_count,
@@ -173,10 +166,6 @@ def _check_detection_evidence_nonempty(ctx: MigrationContext, dr: Any) -> "Check
         type=AnomalyType.VALIDATION_DETECTION_EVIDENCE_EMPTY,
         severity=Severity.HIGH,
         message="detection evidence list is empty; detection claims have no support",
-        location=AnomalyLocation(stage=_STAGE, source="detection"),
-        evidence=[evidence],
-    )
-    return _make_failed(check_id, "structural", Severity.HIGH, evidence)
         location=AnomalyLocation(stage=_STAGE, source="detection"),
         evidence=[evidence],
     )
