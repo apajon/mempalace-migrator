@@ -28,33 +28,20 @@ The nine invariants (from tests/M7_ADVERSARIAL_DESIGN.md §5):
 from __future__ import annotations
 
 import json
-import re
 from typing import Any
 
 import pytest
 
-from mempalace_migrator.core.context import AnomalyType
-from mempalace_migrator.reporting.report_builder import (REPORT_SCHEMA_VERSION,
-                                                         REPORT_TOP_LEVEL_KEYS)
-
+from ._invariants import (_KNOWN_STAGES, check_anomaly_well_formedness,
+                          check_exit_code_in_allowed_set,
+                          check_failure_stage_is_known, check_json_safety,
+                          check_no_forbidden_vocabulary,
+                          check_no_silent_critical,
+                          check_no_traceback_on_stderr,
+                          check_no_unexpected_exit_code,
+                          check_schema_stability)
 from .conftest import (CORPUS, EXIT_CRITICAL_ANOMALY, EXIT_OK, EXIT_UNEXPECTED,
                        CorpusEntry, run_cli)
-
-# ---------------------------------------------------------------------------
-# Regexes
-# ---------------------------------------------------------------------------
-
-_TRACEBACK_RE = re.compile(r"^Traceback \(most recent call last\):", re.MULTILINE)
-
-_FORBIDDEN_WORDS = ("correct", "verified", "guaranteed", "valid")
-_FORBIDDEN_RE = re.compile(
-    r"\b(" + "|".join(_FORBIDDEN_WORDS) + r")\b",
-    re.IGNORECASE,
-)
-
-_KNOWN_STAGES = frozenset({"detect", "extract", "transform", "reconstruct", "validate", "report"})
-_VALID_ANOMALY_TYPES = frozenset(t.value for t in AnomalyType)
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -79,15 +66,12 @@ def _run_entry(entry: CorpusEntry, palace, *, json_output: bool = True, quiet: b
 def _parse_report_or_fail(stdout: str, stderr: str, *, context: str) -> dict[str, Any]:
     if not stdout.strip():
         raise AssertionError(
-            f"[{context}] expected JSON report on stdout but stdout was empty.\n"
-            f"stderr={stderr!r}"
+            f"[{context}] expected JSON report on stdout but stdout was empty.\n" f"stderr={stderr!r}"
         )
     try:
         return json.loads(stdout)
     except json.JSONDecodeError as exc:
-        raise AssertionError(
-            f"[{context}] stdout is not valid JSON: {exc}\nstdout={stdout!r}"
-        ) from exc
+        raise AssertionError(f"[{context}] stdout is not valid JSON: {exc}\nstdout={stdout!r}") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -129,144 +113,75 @@ def entry_run(request, tmp_path, _entry_runs):
 
 # Inv. 1 — no exit 10.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_no_unexpected_exit_code(entry_run):
-    entry = entry_run["entry"]
-    rc = entry_run["returncode"]
-    assert rc != EXIT_UNEXPECTED, (
-        f"[{entry.cid}] CLI returned EXIT_UNEXPECTED (10); "
-        f"adversarial input revealed an unmodelled failure mode.\n"
-        f"stderr={entry_run['stderr']!r}"
-    )
+    check_no_unexpected_exit_code(entry_run["entry"].cid, entry_run["returncode"], entry_run["stderr"])
 
 
 # Inv. ent. — exit code is in the entry's allowed set.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_exit_code_in_allowed_set(entry_run):
-    entry = entry_run["entry"]
-    rc = entry_run["returncode"]
-    assert rc in entry.allowed_exit_codes, (
-        f"[{entry.cid}] exit code {rc} not in allowed set {sorted(entry.allowed_exit_codes)}.\n"
-        f"stderr={entry_run['stderr']!r}"
-    )
+    e = entry_run["entry"]
+    check_exit_code_in_allowed_set(e.cid, entry_run["returncode"], e.allowed_exit_codes, entry_run["stderr"])
 
 
 # Inv. 2 — no Python traceback on stderr.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_no_traceback_on_stderr(entry_run):
-    entry = entry_run["entry"]
-    stderr = entry_run["stderr"]
-    assert not _TRACEBACK_RE.search(stderr), (
-        f"[{entry.cid}] Python traceback escaped to stderr without --debug.\n"
-        f"stderr={stderr!r}"
-    )
+    check_no_traceback_on_stderr(entry_run["entry"].cid, entry_run["stderr"])
 
 
 # Inv. 3 — no silent CRITICAL.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_no_silent_critical(entry_run):
-    entry = entry_run["entry"]
-    report = entry_run["report"]
-    if report is None:
-        # No report = exception path; covered by other invariants.
-        return
-    outcome = report.get("outcome")
-    rc = entry_run["returncode"]
-    top_sev = (report.get("anomaly_summary") or {}).get("top_severity", "none")
-    if outcome == "success":
-        assert rc in (EXIT_OK, EXIT_CRITICAL_ANOMALY), (
-            f"[{entry.cid}] outcome=success but exit {rc} not in {{0, 8}}"
-        )
-    if rc == EXIT_OK:
-        assert top_sev != "critical", (
-            f"[{entry.cid}] exit 0 but top_severity=critical "
-            "(silent-CRITICAL guard violated)"
-        )
+    check_no_silent_critical(entry_run["entry"].cid, entry_run["report"], entry_run["returncode"])
 
 
 # Inv. 4 — schema stability.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_schema_version_and_top_level_keys(entry_run):
-    entry = entry_run["entry"]
-    report = entry_run["report"]
-    if report is None:
-        return
-    assert report.get("schema_version") == REPORT_SCHEMA_VERSION, (
-        f"[{entry.cid}] schema_version={report.get('schema_version')!r} "
-        f"!= REPORT_SCHEMA_VERSION={REPORT_SCHEMA_VERSION}"
-    )
-    missing = [k for k in REPORT_TOP_LEVEL_KEYS if k not in report]
-    assert not missing, f"[{entry.cid}] report missing top-level keys: {missing}"
+    check_schema_stability(entry_run["entry"].cid, entry_run["report"])
 
 
 # Inv. 5 — JSON safety (round-trip with no default=).
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_report_is_json_safe_round_trip(entry_run):
-    entry = entry_run["entry"]
-    report = entry_run["report"]
-    if report is None:
-        return
-    # The report came from json.loads(stdout); re-dumping with no default=
-    # confirms every value is natively JSON-safe.
-    json.dumps(report)  # would raise TypeError on bad value
+    check_json_safety(entry_run["entry"].cid, entry_run["report"])
 
 
 # Inv. 6 — anomaly well-formedness.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_anomaly_well_formedness(entry_run):
-    entry = entry_run["entry"]
-    report = entry_run["report"]
-    if report is None:
-        return
-    for i, a in enumerate(report.get("anomalies") or []):
-        assert a.get("type") in _VALID_ANOMALY_TYPES, (
-            f"[{entry.cid}] anomaly[{i}].type={a.get('type')!r} not in AnomalyType"
-        )
-        loc = a.get("location") or {}
-        stage = loc.get("stage", "")
-        assert isinstance(stage, str) and stage.strip(), (
-            f"[{entry.cid}] anomaly[{i}].location.stage is empty"
-        )
-        evidence = a.get("evidence") or []
-        assert isinstance(evidence, list) and len(evidence) >= 1, (
-            f"[{entry.cid}] anomaly[{i}] has no evidence entries"
-        )
+    check_anomaly_well_formedness(entry_run["entry"].cid, entry_run["report"])
 
 
 # Inv. 7 — forbidden correctness vocabulary.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_no_forbidden_vocabulary_in_report(entry_run):
-    entry = entry_run["entry"]
-    report = entry_run["report"]
-    if report is None:
-        return
-    matches = _FORBIDDEN_RE.findall(json.dumps(report))
-    assert not matches, (
-        f"[{entry.cid}] forbidden correctness vocabulary in JSON output: {matches}"
-    )
+    check_no_forbidden_vocabulary(entry_run["entry"].cid, entry_run["report"])
 
 
 # Inv. 8 — stage attribution on raised failures.
 
+
 @pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
 def test_failure_stage_is_known(entry_run):
-    entry = entry_run["entry"]
-    report = entry_run["report"]
-    if report is None:
-        return
-    failure = report.get("failure")
-    if failure is None:
-        return
-    assert failure.get("stage") in _KNOWN_STAGES, (
-        f"[{entry.cid}] failure.stage={failure.get('stage')!r} not in {_KNOWN_STAGES}"
-    )
+    check_failure_stage_is_known(entry_run["entry"].cid, entry_run["report"])
 
 
 # Inv. 9a — under --json-output, stdout is exactly one JSON document
@@ -278,18 +193,16 @@ def test_failure_stage_is_known(entry_run):
 
 # Inv. 9b — under --quiet, stdout is empty regardless of input pathology.
 
+
 @pytest.mark.parametrize("entry", CORPUS, ids=_ids(CORPUS))
 def test_quiet_suppresses_stdout(entry: CorpusEntry, tmp_path):
     palace = entry.builder(tmp_path)
     result = run_cli(["--quiet", entry.pipeline, str(palace)])
-    assert result.stdout == "", (
-        f"[{entry.cid}] --quiet leaked output to stdout: {result.stdout!r}"
-    )
+    assert result.stdout == "", f"[{entry.cid}] --quiet leaked output to stdout: {result.stdout!r}"
     # quiet must preserve the exit code policy: still in the per-entry
     # allowed set AND never EXIT_UNEXPECTED.
     assert result.returncode != EXIT_UNEXPECTED, (
-        f"[{entry.cid}] --quiet returned EXIT_UNEXPECTED (10): "
-        f"stderr={result.stderr!r}"
+        f"[{entry.cid}] --quiet returned EXIT_UNEXPECTED (10): " f"stderr={result.stderr!r}"
     )
     assert result.returncode in entry.allowed_exit_codes, (
         f"[{entry.cid}] --quiet exit {result.returncode} not in allowed set "
