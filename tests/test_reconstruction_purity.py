@@ -17,6 +17,23 @@ import pytest
 
 _RECONSTRUCTION_PKG = Path(__file__).parent.parent / "src" / "mempalace_migrator" / "reconstruction"
 _WRITER = _RECONSTRUCTION_PKG / "_writer.py"
+_VALIDATION_PKG = Path(__file__).parent.parent / "src" / "mempalace_migrator" / "validation"
+_PARITY = _VALIDATION_PKG / "parity.py"
+
+# Forbidden write-side chromadb method names in parity.py (AST-asserted).
+_FORBIDDEN_ATTR_NAMES = frozenset(
+    {
+        "add",
+        "update",
+        "upsert",
+        "delete",
+        "modify",
+        "reset",
+        "create_collection",
+        "delete_collection",
+        "peek",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -105,3 +122,58 @@ def test_reconstructor_no_chromadb_at_module_level():
     assert not _has_module_level_chromadb_import(
         src
     ), "reconstructor.py imports chromadb at module level — move it to _writer.py"
+
+
+# ---------------------------------------------------------------------------
+# M11: parity.py is the second (and only other) allowed chromadb importer
+# ---------------------------------------------------------------------------
+
+
+def test_parity_does_not_import_chromadb_at_module_level():
+    """validation/parity.py uses a lazy chromadb import inside _open_target_readonly.
+
+    This keeps CLI startup fast: chromadb is only imported when parity checks
+    actually run (i.e. after a successful reconstruction).
+    Only reconstruction/_writer.py is allowed to import chromadb at module level.
+    """
+    src = _PARITY.read_text(encoding="utf-8")
+    assert not _has_module_level_chromadb_import(src), (
+        "validation/parity.py must NOT import chromadb at module level "
+        "(use lazy import inside _open_target_readonly)"
+    )
+
+
+def test_parity_no_forbidden_write_methods():
+    """AST walk: parity.py must not reference any forbidden chromadb write methods.
+
+    The check walks all attribute accesses in the entire file (not just top
+    level) and rejects any ``.add``, ``.update``, ``.upsert``, ``.delete``,
+    ``.modify``, ``.reset``, ``.create_collection``, ``.delete_collection``,
+    or ``.peek``. This is intentionally over-approximate (false positives
+    preferred over false negatives).
+    """
+    src = _PARITY.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr in _FORBIDDEN_ATTR_NAMES:
+            violations.append(f"line {node.lineno}: forbidden method reference '.{node.attr}' in parity.py")
+    assert violations == [], "\n".join(violations)
+
+
+def test_parity_no_allow_reset_true():
+    """parity.py must never use allow_reset=True (literal check)."""
+    src = _PARITY.read_text(encoding="utf-8")
+    assert "allow_reset=True" not in src, "parity.py contains 'allow_reset=True' — target must be opened read-only"
+
+
+def test_other_validation_modules_no_chromadb_at_module_level():
+    """No module in validation/ (including parity.py) imports chromadb at module level.
+    Only reconstruction/_writer.py holds the chromadb module-level import.
+    """
+    violations: list[str] = []
+    for py_file in sorted(_VALIDATION_PKG.glob("*.py")):
+        src = py_file.read_text(encoding="utf-8")
+        if _has_module_level_chromadb_import(src):
+            violations.append(f"{py_file.name}: must NOT import chromadb at module level")
+    assert violations == [], "\n".join(violations)

@@ -27,14 +27,10 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
-from mempalace_migrator.cli.main import (EXIT_RECONSTRUCT_FAILED,
-                                         EXIT_USAGE_ERROR, cli)
-from mempalace_migrator.detection.format_detector import (MANIFEST_FILENAME,
-                                                          SQLITE_FILENAME)
-from mempalace_migrator.extraction.chroma_06_reader import \
-    EXPECTED_COLLECTION_NAME
-from mempalace_migrator.reconstruction._manifest import \
-    TARGET_MANIFEST_FILENAME
+from mempalace_migrator.cli.main import EXIT_RECONSTRUCT_FAILED, EXIT_USAGE_ERROR, cli
+from mempalace_migrator.detection.format_detector import MANIFEST_FILENAME, SQLITE_FILENAME
+from mempalace_migrator.extraction.chroma_06_reader import EXPECTED_COLLECTION_NAME
+from mempalace_migrator.reconstruction._manifest import TARGET_MANIFEST_FILENAME
 
 # ---------------------------------------------------------------------------
 # Palace fixture helpers (duplicated from test_cli.py for isolation)
@@ -199,6 +195,72 @@ def test_migrate_nonempty_target_exits_5(tmp_path: Path) -> None:
         text=True,
     )
     assert result.returncode == EXIT_RECONSTRUCT_FAILED
-        text=True,
+
+
+# ---------------------------------------------------------------------------
+# M11: parity checks appear in validation result after successful migrate
+# ---------------------------------------------------------------------------
+
+
+def test_migrate_happy_path_produces_parity_outcomes(tmp_path: Path) -> None:
+    """After a successful migrate the validation result must include five
+    parity CheckOutcomes (family='parity').
+
+    We use CliRunner so we can inspect ctx. But CliRunner runs the CLI
+    in-process; we capture the result by reading the JSON report written
+    to stdout or by using the underlying pipeline directly.
+
+    Here we call the underlying pipeline directly (same as CLI does) so
+    we can inspect ctx.validation_result.
+    """
+    from mempalace_migrator.core.context import MigrationContext
+    from mempalace_migrator.core.pipeline import FULL_PIPELINE, run_pipeline
+
+    source = tmp_path / "source"
+    source.mkdir()
+    make_valid_palace(source, n_drawers=3)
+    target = tmp_path / "target"
+
+    ctx = MigrationContext(source_path=source, target_path=target)
+    run_pipeline(ctx, FULL_PIPELINE)
+
+    assert ctx.validation_result is not None
+    parity_outcomes = [o for o in ctx.validation_result.checks_performed if o.family == "parity"]
+    assert len(parity_outcomes) == 5, (
+        f"Expected 5 parity outcomes, got {len(parity_outcomes)}: " f"{[o.id for o in parity_outcomes]}"
     )
-    assert result.returncode == EXIT_RECONSTRUCT_FAILED
+
+
+def test_migrate_happy_path_parity_all_passed(tmp_path: Path) -> None:
+    from mempalace_migrator.core.context import MigrationContext
+    from mempalace_migrator.core.pipeline import FULL_PIPELINE, run_pipeline
+
+    source = tmp_path / "source"
+    source.mkdir()
+    make_valid_palace(source, n_drawers=3)
+    target = tmp_path / "target"
+
+    ctx = MigrationContext(source_path=source, target_path=target)
+    run_pipeline(ctx, FULL_PIPELINE)
+
+    parity_outcomes = [o for o in ctx.validation_result.checks_performed if o.family == "parity"]
+    failed = [o for o in parity_outcomes if o.status == "failed"]
+    assert not failed, f"Parity checks failed on clean migration: {[(o.id, o.status) for o in failed]}"
+
+
+def test_migrate_happy_path_checks_not_performed_empty(tmp_path: Path) -> None:
+    """After a successful migrate, checks_not_performed must be empty."""
+    from mempalace_migrator.core.context import MigrationContext
+    from mempalace_migrator.core.pipeline import FULL_PIPELINE, run_pipeline
+
+    source = tmp_path / "source"
+    source.mkdir()
+    make_valid_palace(source, n_drawers=2)
+    target = tmp_path / "target"
+
+    ctx = MigrationContext(source_path=source, target_path=target)
+    run_pipeline(ctx, FULL_PIPELINE)
+
+    assert ctx.validation_result.checks_not_performed == (), (
+        f"Expected empty checks_not_performed after full migrate; " f"got {ctx.validation_result.checks_not_performed}"
+    )

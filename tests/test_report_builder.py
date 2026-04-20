@@ -98,11 +98,13 @@ def test_report_top_level_keys_are_stable(tmp_path):
     assert set(rep.keys()) == set(REPORT_TOP_LEVEL_KEYS)
 
 
-def test_explicitly_not_checked_unchanged(tmp_path):
+def test_explicitly_not_checked_post_m11(tmp_path):
     ctx = _ctx(tmp_path)
     rep = build_report(ctx)
     assert rep["explicitly_not_checked"] == list(EXPLICITLY_NOT_CHECKED)
-    assert len(rep["explicitly_not_checked"]) == 9
+    assert len(rep["explicitly_not_checked"]) == 7
+    assert "target_record_count_parity" not in rep["explicitly_not_checked"]
+    assert "target_id_set_parity" not in rep["explicitly_not_checked"]
 
 
 def test_report_is_json_safe_strict(tmp_path):
@@ -476,6 +478,20 @@ def test_stages_section_skipped_via_skip_reasons(tmp_path):
     rep = build_report(ctx)
     stage = rep["stages"]["reconstruct"]
     assert stage["status"] == "skipped"
+    assert stage["skipped_reason"] == "no_target_path"
+
+
+def test_stages_section_no_not_implemented_anomaly_needed(tmp_path):
+    """With stage_skip_reasons set, we do NOT need a NOT_IMPLEMENTED anomaly
+    for the stage to be 'skipped'."""
+    ctx = _ctx(tmp_path)
+    ctx.stage_skip_reasons["reconstruct"] = "no_target_path"
+    rep = build_report(ctx)
+    assert rep["stages"]["reconstruct"]["status"] == "skipped"
+    not_implemented_for_reconstruct = [
+        a for a in rep["anomalies"] if a["stage"] == "reconstruct" and a["type"] == "not_implemented"
+    ]
+    assert not_implemented_for_reconstruct == []
     assert stage["skipped_reason"] == "no_target_path"
 
 

@@ -368,16 +368,29 @@ def test_skipped_checks_listed_explicitly(tmp_path):
     skipped_ids = [c.id for c in result.checks_not_performed]
     assert "target_record_count_parity" in skipped_ids
     assert "target_id_set_parity" in skipped_ids
+    assert "target_document_hash_parity" in skipped_ids
+    assert "target_metadata_parity" in skipped_ids
+    assert "target_embedding_presence" in skipped_ids
 
 
-def test_skipped_checks_reason_is_stage_not_implemented(tmp_path):
+def test_skipped_checks_reason_is_reconstruction_not_run(tmp_path):
     ctx = _ctx(tmp_path)
     ctx.detected_format = _detection_result()
     ctx.extracted_data = _extraction_result()
+    # reconstruction_result not set → parity checks must be skipped
     result = validate(ctx)
+    parity_ids = {
+        "target_record_count_parity",
+        "target_id_set_parity",
+        "target_document_hash_parity",
+        "target_metadata_parity",
+        "target_embedding_presence",
+    }
     for skipped in result.checks_not_performed:
-        if skipped.id in ("target_record_count_parity", "target_id_set_parity"):
-            assert skipped.reason == "stage_not_implemented"
+        if skipped.id in parity_ids:
+            assert (
+                skipped.reason == "reconstruction_not_run"
+            ), f"{skipped.id}: expected reason='reconstruction_not_run', got {skipped.reason!r}"
 
 
 def test_checks_not_performed_always_nonempty_while_reconstruction_stub(tmp_path):
@@ -525,6 +538,25 @@ def test_validation_band_low_when_high_severity_check_fails(tmp_path):
     )
     result = validate(ctx)
     assert result.confidence_band == "LOW"
+
+
+def test_validate_result_is_json_safe(tmp_path):
+    ctx = _ctx(tmp_path)
+    ctx.detected_format = _detection_result()
+    ctx.extracted_data = _extraction_result()
+    result = validate(ctx)
+    serialised = json.dumps(result.to_dict())
+    assert isinstance(serialised, str)
+    assert result.confidence_band == "LOW"
+
+
+def test_validate_result_is_json_safe(tmp_path):
+    ctx = _ctx(tmp_path)
+    ctx.detected_format = _detection_result()
+    ctx.extracted_data = _extraction_result()
+    result = validate(ctx)
+    serialised = json.dumps(result.to_dict())
+    assert isinstance(serialised, str)
 
 
 def test_validate_result_is_json_safe(tmp_path):

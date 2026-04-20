@@ -24,18 +24,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mempalace_migrator.core.context import (AnomalyType, MigrationContext,
-                                             Severity)
+from mempalace_migrator.core.context import AnomalyType, MigrationContext, Severity
 from mempalace_migrator.core.errors import ReconstructionError
-from mempalace_migrator.detection.format_detector import (MANIFEST_FILENAME,
-                                                          SQLITE_FILENAME)
-from mempalace_migrator.extraction.chroma_06_reader import \
-    EXPECTED_COLLECTION_NAME
+from mempalace_migrator.core.pipeline import step_validate
+from mempalace_migrator.detection.format_detector import MANIFEST_FILENAME, SQLITE_FILENAME
+from mempalace_migrator.extraction.chroma_06_reader import EXPECTED_COLLECTION_NAME
 from mempalace_migrator.reconstruction import reconstruct
-from mempalace_migrator.transformation._types import (LengthProfile,
-                                                      TransformedBundle,
-                                                      TransformedDrawer,
-                                                      TransformedSummary)
+from mempalace_migrator.transformation._types import (
+    LengthProfile,
+    TransformedBundle,
+    TransformedDrawer,
+    TransformedSummary,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -104,8 +104,7 @@ def test_mid_batch_failure_target_does_not_exist(tmp_path: Path) -> None:
 
     with patch("mempalace_migrator.reconstruction._writer.BATCH_SIZE", 2):
         from mempalace_migrator.reconstruction import _writer
-        from mempalace_migrator.reconstruction._writer import \
-            _BatchInsertError as RealBIE
+        from mempalace_migrator.reconstruction._writer import _BatchInsertError as RealBIE
 
         original_add_in_batches = _writer.add_in_batches
 
@@ -143,8 +142,7 @@ def test_mid_batch_failure_rollback_anomaly_present(tmp_path: Path) -> None:
     target = tmp_path / "target"
     ctx = _make_ctx(source, target)
 
-    from mempalace_migrator.reconstruction._writer import \
-        _BatchInsertError as RealBIE  # noqa
+    from mempalace_migrator.reconstruction._writer import _BatchInsertError as RealBIE  # noqa
 
     def fail_add(col, drawers):
         items = list(drawers)
@@ -170,8 +168,7 @@ def test_mid_batch_failure_critical_anomaly_present(tmp_path: Path) -> None:
     target = tmp_path / "target"
     ctx = _make_ctx(source, target)
 
-    from mempalace_migrator.reconstruction._writer import \
-        _BatchInsertError as RealBIE  # noqa
+    from mempalace_migrator.reconstruction._writer import _BatchInsertError as RealBIE  # noqa
 
     def fail_add(col, drawers):
         items = list(drawers)
@@ -198,8 +195,7 @@ def test_reconstruction_result_none_after_failure(tmp_path: Path) -> None:
     target = tmp_path / "target"
     ctx = _make_ctx(tmp_path / "src", target)
 
-    from mempalace_migrator.reconstruction._writer import \
-        _BatchInsertError as RealBIE
+    from mempalace_migrator.reconstruction._writer import _BatchInsertError as RealBIE
 
     def fail_add(col, drawers):
         items = list(drawers)
@@ -268,7 +264,42 @@ def test_collection_create_failed_rollback(tmp_path: Path) -> None:
 
     assert exc_info.value.code == "chromadb_collection_create_failed"
     assert not target.exists()
-            reconstruct(ctx)
 
-    assert exc_info.value.code == "chromadb_collection_create_failed"
-    assert not target.exists()
+
+# ---------------------------------------------------------------------------
+# M11: step_validate must not modify target files
+# ---------------------------------------------------------------------------
+
+
+def test_validate_target_mtime_invariant(tmp_path: Path) -> None:
+    """step_validate (including parity checks) must not modify any file
+    inside the target directory.
+
+    We capture mtime + sha256 for every file in the target before
+    step_validate runs and assert they are identical after.
+    """
+    from mempalace_migrator.reconstruction import reconstruct
+
+    source = tmp_path / "source"
+    source.mkdir()
+    target = tmp_path / "target"
+
+    ctx = _make_ctx(source, target)
+    ctx.reconstruction_result = reconstruct(ctx)
+    assert ctx.reconstruction_result is not None, "reconstruction must succeed for this test"
+
+    # Snapshot every file in the target before validate.
+    def _snapshot(root: Path) -> dict[str, tuple[float, str]]:
+        snap: dict[str, tuple[float, str]] = {}
+        for f in sorted(root.rglob("*")):
+            if f.is_file():
+                snap[str(f.relative_to(root))] = (f.stat().st_mtime, _sha256(f))
+        return snap
+
+    before = _snapshot(target)
+    assert before, "target must have files after reconstruction"
+
+    step_validate(ctx)
+
+    after = _snapshot(target)
+    assert after == before, "step_validate modified target files — parity checks must be read-only"
