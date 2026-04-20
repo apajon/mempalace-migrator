@@ -166,22 +166,25 @@
         "M8"
     ],
     "current_position": {
-        "milestone": "M5_done_M6_next",
-        "description": "Validation (M5) exit gate satisfied. CLI (M6) is the next milestone.",
-        "risk_level": "medium",
-        "reason": "M5 exit gate conditions met: structural/consistency/heuristic check families separated into three modules with explicit severity caps (structural+consistency HIGH, heuristic MEDIUM); ValidationResult exposes trichotomous outcomes (passed/failed/inconclusive) — never a boolean; confidence_band ∈ {HIGH, MEDIUM, LOW, UNKNOWN} integrated into report confidence_summary via weakest-band rule (overall = weakest_band(detection, extraction, validation)); checks_not_performed always populated (target_record_count_parity, target_id_set_parity remain skipped while reconstruction is a stub); forbidden-vocabulary regex test enforces no 'correct/verified/guaranteed/safe/valid' in JSON payload; validate() never raises MigratorError; report schema bumped to version 4; EXPLICITLY_NOT_CHECKED grew from 7 to 9 items. 151 tests pass (123 prior + 28 new). Remaining risk concentrates on M6-M8: CLI usability, adversarial coverage, hardening.",
+        "milestone": "M6_done_M7_next",
+        "description": "CLI (M6) exit gate satisfied. Adversarial Testing (M7) is the next milestone.",
+        "risk_level": "high",
+        "reason": "M6 exit gate conditions met: three subcommands (analyze/inspect/report) wired through Click; console entry point declared in pyproject.toml; pinned exit-code policy fully enforced — EXIT_USAGE_ERROR=1 remapped from Click UsageError via standalone_mode=False (resolves collision with EXIT_DETECTION_FAILED=2); EXIT_REPORT_FILE_ERROR=9 distinguishes file I/O errors from pipeline stage errors (EXIT_REPORT_FAILED=6); exit-code table user-discoverable via --help epilog; stdout/stderr discipline under --json-output verified by real subprocess tests (CliRunner cannot isolate in Click 8.2+); _decide_exit_code() is pure and unit-tested (11 cases); exit 8 guards silent CRITICAL anomalies; --quiet suppresses output while preserving exit codes. 191 tests pass (151 prior + 40 new CLI tests). Risk now concentrates on M7: adversarial inputs may expose silent corruption, false success, or unreported failures.",
         "completed_milestones": [
             "M1",
             "M2",
             "M3",
             "M4",
-            "M5"
+            "M5",
+            "M6"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
             "Legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch (still produces structurally-valid Anomalies).",
-            "transformation/reconstruction report sections remain null (stubs); stages section correctly marks them skipped or not_run. Validation section is now populated.",
-            "Reconstruction-parity validation checks (target_record_count_parity, target_id_set_parity) are explicitly listed in checks_not_performed with reason 'stage_not_implemented' until reconstruction lands."
+            "transformation/reconstruction report sections remain null (stubs); stages section correctly marks them skipped or not_run.",
+            "Reconstruction-parity validation checks (target_record_count_parity, target_id_set_parity) are explicitly listed in checks_not_performed with reason 'stage_not_implemented' until reconstruction lands.",
+            "inspect exits 0 when transform/reconstruct stubs run; the --help warning and not_implemented anomalies in the report are the only signals that two stages were skipped.",
+            "CliRunner-based tests cannot assert stdout/stderr separation under Click 8.2+; those assertions are covered by subprocess invocations instead."
         ]
     },
     "rules": [

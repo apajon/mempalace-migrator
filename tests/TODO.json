@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-19-m5",
+    "last_updated": "2026-04-19-m6",
     "phases": [
         {
             "id": 0,
@@ -314,7 +314,7 @@
         {
             "id": 9,
             "name": "CLI",
-            "status": "todo",
+            "status": "done",
             "priority": "medium",
             "description": "User interface for execution",
             "depends_on": [
@@ -324,17 +324,26 @@
                 {
                     "id": "9.1",
                     "label": "Input handling",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "click.Path(exists=True, dir_okay=True) on source arg; report subcommand accepts existing file. Nonexistent path rejected by Click before pipeline entry."
                 },
                 {
                     "id": "9.2",
                     "label": "Output display",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "--json-output global flag: JSON to stdout only. Text via render_text(). --quiet suppresses all output while preserving exit code. _decide_exit_code() is the single authority on exit codes; exit 8 guards silent CRITICAL anomalies."
                 },
                 {
                     "id": "9.3",
                     "label": "Execution modes",
-                    "status": "todo"
+                    "status": "done",
+                    "note": "Three subcommands: analyze (ANALYZE_PIPELINE: detect+extract), inspect (FULL_PIPELINE: +transform/reconstruct stubs+validate), report (re-render saved JSON, no pipeline). PIPELINES registry in core/pipeline.py. No migrate/reconstruct commands."
+                },
+                {
+                    "id": "9.4",
+                    "label": "Exit-code policy (_decide_exit_code)",
+                    "status": "done",
+                    "note": "Pinned codes: 0=ok, 2=detect, 3=extract, 4=transform, 5=reconstruct, 6=report, 7=validate, 8=success-but-critical-anomaly, 10=unexpected. Pure function; unit-tested in test_cli.py::TestDecideExitCode (11 cases)."
                 }
             ]
         },
@@ -412,9 +421,9 @@
     ],
     "current_focus": {
         "phase_ids": [
-            8
+            10
         ],
-        "label": "Validation (M5)",
-        "reason": "M4 (Reporting) exit gate satisfied: global stats (extraction_stats + stages section), anomaly aggregation (by_severity + by_type + by_stage + top_severity), confidence_summary with explicit weakest-band rule, human-readable render_text() in reporting/ (CLI no longer contains rendering logic), structured JSON output with schema_version=3 and REPORT_TOP_LEVEL_KEYS contract, consistency invariant (REPORT_INCONSISTENT_FAILURE injected into report when outcome=failure lacks a matching CRITICAL anomaly). 123 tests pass (81 prior + 28 new M4 reporting tests + 14 new text-renderer tests). Known caveats: transformation/reconstruction/validation sections remain null (stubs); stages section correctly marks them as skipped or not_run. Next: implement non-misleading validation (phase 8) — structural checks, internal consistency, heuristic plausibility, confidence-based output without correctness claims."
+        "label": "Adversarial Testing (M7)",
+        "reason": "M6 (CLI) exit gate satisfied: analyze/inspect/report subcommands implemented; --json-output global flag with stdout-only JSON output verified; --quiet flag suppresses output but preserves exit codes; _decide_exit_code() is the single authority on exit codes with pinned values (0/2/3/4/5/6/7/8/10) including exit 8 for success-with-CRITICAL-anomaly; PIPELINES registry in core/pipeline.py; duplicate main() bug removed; duplicate trailing syntax-error blocks in pipeline.py, report_builder.py, consistency.py, structural.py fixed. 39 new CLI tests; 190 total pass. Next: adversarial testing (phase 10) — corrupted inputs, mixed formats, extreme edge cases, explicit failure surfacing."
     }
 }
