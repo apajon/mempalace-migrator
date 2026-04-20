@@ -50,6 +50,26 @@ def render_text(report: dict[str, Any]) -> str:
     if conf:
         lines.append(f"confidence_overall: {conf.get('overall_band')}")
 
+    validation = report.get("validation")
+    if validation:
+        vband = validation.get("confidence_band", "?")
+        counts = validation.get("summary_counts", {})
+        lines.append(
+            f"validation: band={vband} "
+            f"passed={counts.get('passed', 0)} "
+            f"failed={counts.get('failed', 0)} "
+            f"inconclusive={counts.get('inconclusive', 0)}"
+        )
+        for check in validation.get("checks_performed", []):
+            if check.get("status") != "passed":
+                lines.append(
+                    f"  check/{check.get('id')}: {check.get('status')} "
+                    f"(severity_on_failure={check.get('severity_on_failure')})"
+                )
+        skipped = validation.get("checks_not_performed", [])
+        if skipped:
+            lines.append(f"  checks_not_performed: {len(skipped)} ({', '.join(c.get('id','?') for c in skipped)})")
+
     stages = report.get("stages") or {}
     for stage, info in stages.items():
         status = info.get("status", "?")

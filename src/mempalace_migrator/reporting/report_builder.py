@@ -18,11 +18,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from mempalace_migrator.core.context import SEVERITIES, AnomalyType, MigrationContext, Severity
+from mempalace_migrator.core.context import (SEVERITIES, AnomalyType,
+                                             MigrationContext, Severity)
 from mempalace_migrator.core.errors import MigratorError
-from mempalace_migrator.detection.format_detector import SUPPORTED_VERSION_PAIRS
+from mempalace_migrator.detection.format_detector import \
+    SUPPORTED_VERSION_PAIRS
 
-REPORT_SCHEMA_VERSION = 3
+REPORT_SCHEMA_VERSION = 4
 TOOL_VERSION = "0.1.0"
 
 EXPLICITLY_NOT_CHECKED: tuple[str, ...] = (
@@ -33,6 +35,8 @@ EXPLICITLY_NOT_CHECKED: tuple[str, ...] = (
     "target_chromadb_default_embedding_function_match",
     "hnsw_segment_file_integrity",
     "manifest_authenticity",
+    "target_record_count_parity",
+    "target_id_set_parity",
 )
 
 # Stable top-level keys contract. Tested by test_report_top_level_keys_are_stable.
@@ -112,7 +116,7 @@ def build_report(ctx: MigrationContext, *, failure: MigratorError | None = None)
         "extraction_stats": _extraction_stats(ctx),
         "transformation": None,
         "reconstruction": None,
-        "validation": None,
+        "validation": _validation_section(ctx),
         "stages": _stages_section(ctx),
         "confidence_summary": _confidence_summary(ctx),
         "anomalies": anomaly_dicts,
@@ -123,6 +127,13 @@ def build_report(ctx: MigrationContext, *, failure: MigratorError | None = None)
 
 
 # --- Section builders -----------------------------------------------------
+
+
+def _validation_section(ctx: MigrationContext) -> dict[str, Any] | None:
+    vr = ctx.validation_result
+    if vr is None:
+        return None
+    return vr.to_dict()
 
 
 def _detection_section(ctx: MigrationContext) -> dict[str, Any] | None:
@@ -226,12 +237,21 @@ def _confidence_summary(ctx: MigrationContext) -> dict[str, Any]:
             "band": _parse_rate_band(parse_rate),
         }
 
-    # Collect observed bands; any absent signal → UNKNOWN overall.
+    validation_entry: dict[str, Any] | None = None
+    if ctx.validation_result is not None:
+        validation_entry = {
+            "band": ctx.validation_result.confidence_band,
+            "summary_counts": dict(ctx.validation_result.summary_counts),
+        }
+
+    # Collect observed bands; only present signals participate.
     known_bands: list[str] = []
     if detection_entry is not None:
         known_bands.append(detection_entry["band"])
     if extraction_entry is not None:
         known_bands.append(extraction_entry["band"])
+    if validation_entry is not None:
+        known_bands.append(validation_entry["band"])
 
     if not known_bands:
         overall = "UNKNOWN"
@@ -244,8 +264,9 @@ def _confidence_summary(ctx: MigrationContext) -> dict[str, Any]:
     return {
         "detection": detection_entry,
         "extraction": extraction_entry,
+        "validation": validation_entry,
         "overall_band": overall,
-        "rule": "overall = weakest_band(detection, extraction)",
+        "rule": "overall = weakest_band(detection, extraction, validation)",
     }
 
 
@@ -311,6 +332,11 @@ def _make_inconsistent_failure_dict(failure: MigratorError) -> dict[str, Any]:
                 "detail": "expected >=1 CRITICAL anomaly for the failing stage",
                 "data": {
                     "failure_stage": failure.stage,
+                    "failure_code": failure.code,
+                },
+            }
+        ],
+    }
                     "failure_code": failure.code,
                 },
             }
