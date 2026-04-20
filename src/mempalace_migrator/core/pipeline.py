@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
-from mempalace_migrator.core.errors import MigratorError, PipelineAbort, TransformError
+from mempalace_migrator.core.context import (AnomalyEvidence, AnomalyLocation,
+                                             AnomalyType, MigrationContext,
+                                             Severity)
+from mempalace_migrator.core.errors import (MigratorError, PipelineAbort,
+                                            TransformError)
 from mempalace_migrator.detection.format_detector import (
-    CHROMA_0_6,
-    MIN_ACCEPT_CONFIDENCE,
-    SUPPORTED_VERSION_PAIRS,
-    detect_palace_format,
-)
+    CHROMA_0_6, MIN_ACCEPT_CONFIDENCE, SUPPORTED_VERSION_PAIRS,
+    detect_palace_format)
 from mempalace_migrator.extraction.chroma_06_reader import extract
 from mempalace_migrator.reporting.report_builder import build_report
 from mempalace_migrator.transformation import transform

@@ -22,9 +22,7 @@ from typing import Any
 import pytest
 
 from tests.adversarial.conftest import CorpusEntry, run_cli
-from tests.hardening.conftest import (BASELINE_CORPUS,
-                                      extract_report_signature,
-                                      load_report_signatures)
+from tests.hardening.conftest import BASELINE_CORPUS, extract_report_signature, load_report_signatures
 
 # ---------------------------------------------------------------------------
 # Helpers
