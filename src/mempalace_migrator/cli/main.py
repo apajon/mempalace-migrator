@@ -1,16 +1,18 @@
-"""CLI entry points: analyze, inspect, report.
+"""CLI entry points: analyze, inspect, migrate, report.
 
-Three subcommands — no migrate, no reconstruct, no write operations.
+Four subcommands. ``migrate`` runs the full pipeline and writes a target
+palace. ``analyze`` and ``inspect`` are read-only. ``report`` re-renders
+a saved JSON report.
 
 Exit codes (pinned; never reuse a value):
   0   success, no critical anomalies
   1   Click usage error (bad arguments, missing path) — ENFORCED in main()
   2   detection failed
   3   extraction failed
-  4   transform failed (reserved — stub never raises today)
-  5   reconstruct failed (reserved — stub never raises today)
+  4   transform failed
+  5   reconstruct failed
   6   report-builder pipeline error (MigratorError from report stage)
-  7   validation failed (reserved — validate() never raises today)
+  7   validation failed (validate() records anomalies but never raises)
   8   outcome==success but CRITICAL anomaly recorded ("silent failure" guard)
   9   report file unreadable or not valid JSON (report subcommand only)
   10  unexpected / unrecognised stage
@@ -27,7 +29,8 @@ import click
 
 from mempalace_migrator.core.context import MigrationContext
 from mempalace_migrator.core.errors import MigratorError
-from mempalace_migrator.core.pipeline import ANALYZE_PIPELINE, FULL_PIPELINE, MIGRATE_PIPELINE, run_pipeline
+from mempalace_migrator.core.pipeline import (ANALYZE_PIPELINE, FULL_PIPELINE,
+                                              MIGRATE_PIPELINE, run_pipeline)
 from mempalace_migrator.reporting.text_renderer import render_text
 
 # --- Exit codes -----------------------------------------------------------
@@ -148,8 +151,10 @@ def analyze(click_ctx: click.Context, source: Path) -> None:
 )
 @click.pass_context
 def inspect(click_ctx: click.Context, source: Path) -> None:
-    """Run full pipeline (detect, extract, validate). Transform and reconstruct
-    are stubs; their absence is recorded in the report. Read-only.
+    """Detect, extract, transform, and validate without writing a target palace.
+
+    Reconstruction is skipped because no target path is provided. Parity
+    checks are listed as not-performed in the report. Read-only.
 
     WARNING: validation output is advisory. Absence of check failures does not
     imply correctness.
