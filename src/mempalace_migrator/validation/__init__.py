@@ -25,11 +25,8 @@ listed in ``checks_not_performed`` with reason ``"reconstruction_not_run"``.
 
 from __future__ import annotations
 
-from mempalace_migrator.core.context import (AnomalyEvidence, AnomalyLocation,
-                                             AnomalyType, MigrationContext,
-                                             Severity)
-from mempalace_migrator.validation._types import (CheckOutcome, CheckSkipped,
-                                                  ValidationResult)
+from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
+from mempalace_migrator.validation._types import CheckOutcome, CheckSkipped, ValidationResult
 from mempalace_migrator.validation.consistency import run_consistency_checks
 from mempalace_migrator.validation.heuristics import run_heuristic_checks
 from mempalace_migrator.validation.parity import run_parity_checks
@@ -41,12 +38,13 @@ __all__ = ["validate", "ValidationResult", "CheckOutcome", "CheckSkipped"]
 def _skipped_when_no_reconstruction() -> tuple[CheckSkipped, ...]:
     """Return the five parity skips emitted when reconstruction did not run."""
     return (
-        CheckSkipped(id="target_record_count_parity",  reason="reconstruction_not_run"),
-        CheckSkipped(id="target_id_set_parity",         reason="reconstruction_not_run"),
-        CheckSkipped(id="target_document_hash_parity",  reason="reconstruction_not_run"),
-        CheckSkipped(id="target_metadata_parity",       reason="reconstruction_not_run"),
-        CheckSkipped(id="target_embedding_presence",    reason="reconstruction_not_run"),
+        CheckSkipped(id="target_record_count_parity", reason="reconstruction_not_run"),
+        CheckSkipped(id="target_id_set_parity", reason="reconstruction_not_run"),
+        CheckSkipped(id="target_document_hash_parity", reason="reconstruction_not_run"),
+        CheckSkipped(id="target_metadata_parity", reason="reconstruction_not_run"),
+        CheckSkipped(id="target_embedding_presence", reason="reconstruction_not_run"),
     )
+
 
 # Band ranks for weakest-band rule (lower = worse). UNKNOWN is absent → forces UNKNOWN.
 _BAND_RANK: dict[str, int] = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
@@ -115,16 +113,6 @@ def _compute_band(outcomes: list[CheckOutcome]) -> str:
         for o in outcomes
     )
     if has_failed_medium_or_inconclusive:
-        return "MEDIUM"
-
-    return "HIGH"
-
-
-def _summary_counts(outcomes: list[CheckOutcome]) -> dict[str, int]:
-    counts: dict[str, int] = {"passed": 0, "failed": 0, "inconclusive": 0}
-    for o in outcomes:
-        counts[o.status] += 1
-    return counts
         return "MEDIUM"
 
     return "HIGH"

@@ -22,12 +22,8 @@ import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from mempalace_migrator.core.context import (AnomalyEvidence, AnomalyLocation,
-                                             AnomalyType, MigrationContext,
-                                             Severity)
-from mempalace_migrator.validation._types import (CheckOutcome, _make_failed,
-                                                  _make_inconclusive,
-                                                  _make_passed)
+from mempalace_migrator.core.context import AnomalyEvidence, AnomalyLocation, AnomalyType, MigrationContext, Severity
+from mempalace_migrator.validation._types import CheckOutcome, _make_failed, _make_inconclusive, _make_passed
 
 if TYPE_CHECKING:
     pass
@@ -119,9 +115,7 @@ def run_parity_checks(ctx: MigrationContext) -> list[CheckOutcome]:
             data={},
         )
         outcomes.append(
-            _make_inconclusive(
-                "parity.target_document_hash_parity", "parity", Severity.HIGH, inconclusive_evidence
-            )
+            _make_inconclusive("parity.target_document_hash_parity", "parity", Severity.HIGH, inconclusive_evidence)
         )
         outcomes.append(
             _make_inconclusive("parity.target_metadata_parity", "parity", Severity.HIGH, inconclusive_evidence)
@@ -204,10 +198,7 @@ def _check_id_set(
 
     evidence = AnomalyEvidence(
         kind="observation",
-        detail=(
-            f"{len(missing)} ids missing in target, "
-            f"{len(unexpected)} unexpected ids in target"
-        ),
+        detail=(f"{len(missing)} ids missing in target, " f"{len(unexpected)} unexpected ids in target"),
         data={
             "missing_in_target_count": len(missing),
             "unexpected_in_target_count": len(unexpected),
@@ -218,10 +209,7 @@ def _check_id_set(
     ctx.add_anomaly(
         type=AnomalyType.TARGET_ID_SET_MISMATCH,
         severity=Severity.HIGH,
-        message=(
-            f"target id-set mismatch: {len(missing)} missing, "
-            f"{len(unexpected)} unexpected"
-        ),
+        message=(f"target id-set mismatch: {len(missing)} missing, " f"{len(unexpected)} unexpected"),
         location=AnomalyLocation(stage=_STAGE, source="target"),
         evidence=[evidence],
     )
@@ -295,11 +283,7 @@ def _check_metadata(
         actual_keys = set(actual_meta.keys())
         missing_keys = sorted(expected_keys - actual_keys)
         extra_keys = sorted(actual_keys - expected_keys)
-        value_diff_keys = sorted(
-            k
-            for k in expected_keys & actual_keys
-            if expected_meta[k] != actual_meta[k]
-        )
+        value_diff_keys = sorted(k for k in expected_keys & actual_keys if expected_meta[k] != actual_meta[k])
 
         if len(mismatch_samples) < 20:
             mismatch_samples.append(
@@ -444,9 +428,7 @@ def _check_embedding_presence(ctx: MigrationContext, collection: Any) -> CheckOu
 # ---------------------------------------------------------------------------
 
 
-def _open_target_readonly(
-    target_path: Path, collection_name: str
-) -> tuple[Any, Any]:
+def _open_target_readonly(target_path: Path, collection_name: str) -> tuple[Any, Any]:
     """Open the target ChromaDB palace read-only.
 
     Returns ``(client, collection)``. ``allow_reset=False`` prevents
@@ -515,18 +497,4 @@ def _all_inconclusive(kind: str, detail: str) -> list[CheckOutcome]:
         "parity.target_embedding_presence",
     ]
     severities = [Severity.HIGH, Severity.HIGH, Severity.HIGH, Severity.HIGH, Severity.MEDIUM]
-    return [
-        _make_inconclusive(cid, "parity", sev, evidence)
-        for cid, sev in zip(check_ids, severities)
-    ]
-        "parity.target_record_count_parity",
-        "parity.target_id_set_parity",
-        "parity.target_document_hash_parity",
-        "parity.target_metadata_parity",
-        "parity.target_embedding_presence",
-    ]
-    severities = [Severity.HIGH, Severity.HIGH, Severity.HIGH, Severity.HIGH, Severity.MEDIUM]
-    return [
-        _make_inconclusive(cid, "parity", sev, evidence)
-        for cid, sev in zip(check_ids, severities)
-    ]
+    return [_make_inconclusive(cid, "parity", sev, evidence) for cid, sev in zip(check_ids, severities)]
