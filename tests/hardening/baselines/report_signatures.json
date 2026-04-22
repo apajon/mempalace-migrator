@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "recorded_on": "2026-04-20T19:10:40Z",
+  "recorded_on": "2026-04-22T12:24:21Z",
   "entries": [
     {
       "cid": "baseline_valid_06_palace",
@@ -181,6 +181,28 @@
           "validate"
         ],
         "exit_code": 0
+      }
+    },
+    {
+      "cid": "migrate_baseline_valid",
+      "signature": {
+        "schema_version": 5,
+        "outcome": "success",
+        "top_severity": "none",
+        "anomaly_counts_by_type": {},
+        "stages_executed": [
+          "detect",
+          "extract",
+          "reconstruct",
+          "transform",
+          "validate"
+        ],
+        "exit_code": 0,
+        "reconstruct_stable": {
+          "imported_count": 2,
+          "collection_name": "mempalace_drawers",
+          "batch_size": 500
+        }
       }
     }
   ]
