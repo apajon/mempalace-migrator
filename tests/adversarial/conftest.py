@@ -29,10 +29,8 @@ from pathlib import Path
 
 import pytest
 
-from mempalace_migrator.detection.format_detector import (MANIFEST_FILENAME,
-                                                          SQLITE_FILENAME)
-from mempalace_migrator.extraction.chroma_06_reader import \
-    EXPECTED_COLLECTION_NAME
+from mempalace_migrator.detection.format_detector import MANIFEST_FILENAME, SQLITE_FILENAME
+from mempalace_migrator.extraction.chroma_06_reader import EXPECTED_COLLECTION_NAME
 
 # ---------------------------------------------------------------------------
 # Exit codes (re-exported for clarity in adversarial tests)
@@ -864,9 +862,6 @@ def adversarial_palace(request, tmp_path: Path) -> tuple[CorpusEntry, Path]:
     """
     entry: CorpusEntry = request.param if hasattr(request, "param") else None
     if entry is None:
-        raise RuntimeError("adversarial_palace must be parametrized with a CorpusEntry")
-    palace = entry.builder(tmp_path)
-    return entry, palace
         raise RuntimeError("adversarial_palace must be parametrized with a CorpusEntry")
     palace = entry.builder(tmp_path)
     return entry, palace

@@ -22,9 +22,7 @@ from typing import Any
 import pytest
 
 from tests.adversarial.conftest import CorpusEntry, run_cli
-from tests.hardening.conftest import (BASELINE_CORPUS,
-                                      extract_report_signature,
-                                      load_report_signatures)
+from tests.hardening.conftest import BASELINE_CORPUS, extract_report_signature, load_report_signatures
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -148,10 +146,6 @@ def test_report_is_deterministic(entry: CorpusEntry, tmp_path):
     sig1 = extract_report_signature(report1, rc1)
     sig2 = extract_report_signature(report2, rc2)
     assert sig1 == sig2, (
-        f"[{entry.cid}] report signatures differ between two consecutive runs.\n"
-        f"run1: {json.dumps(sig1, indent=2)}\n"
-        f"run2: {json.dumps(sig2, indent=2)}"
-    )
         f"[{entry.cid}] report signatures differ between two consecutive runs.\n"
         f"run1: {json.dumps(sig1, indent=2)}\n"
         f"run2: {json.dumps(sig2, indent=2)}"
