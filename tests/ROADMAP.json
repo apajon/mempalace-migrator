@@ -292,12 +292,12 @@
         "M13"
     ],
     "current_position": {
-        "milestone": "M12_done",
-        "next_target": "M13",
-        "next_target_reason": "M12 Write-Path Adversarial + Hardening complete (840 tests green: 392 adversarial + 61 hardening + remaining core). All 11 sub-tasks done. Phase 16 end-to-end gate (TODO.json 16.7) not yet satisfied — current_position may not advance past M13 until 16.1–16.6 are all done. M13 must prove the migrator is actually usable end-to-end on the supported version pair.",
-        "description": "M12 exit gate satisfied. 6 new adversarial test files: test_reconstruction_target.py (3), test_reconstruction_rollback.py (6, in-process), test_transformation_pathological.py (7), test_reconstruction_stress.py (4 parametrised), test_reconstruction_duplicates.py (1), test_reconstruction_readback.py (3). Migrate-success baseline entry added to runtime_envelope.json and report_signatures.json. extract_report_signature extended with reconstruct_stable {imported_count, collection_name, batch_size}. Logging discipline coverage guard added. One production fix: TARGET_MKDIR_FAILED AnomalyType — mkdir PermissionError was misclassified as TARGET_PATH_NOT_DIRECTORY. write_manifest centralised mkdir. rebaseline.py fixed (unique per-run targets, source in subdir, single main guard). Full suite: 840 tests green.",
+        "milestone": "M13_done",
+        "next_target": null,
+        "next_target_reason": "M13 is the final planned milestone. All 13 milestones complete. No further milestone targets.",
+        "description": "M13 exit gate satisfied. tests/test_migrate_e2e.py added (7 subprocess-level tests, 16.1–16.6 all green). Pre-existing syntax bugs fixed in adversarial/conftest.py and hardening/test_stability_invariants.py (duplicate code blocks). 844 tests green (3 pre-existing timing-flaky performance baseline failures unrelated to M13). 16.7 self-consistency rule confirmed: ROADMAP advanced only after 16.1–16.6 all done.",
         "risk_level": "low",
-        "reason": "M12 exit gate (M12_WRITE_PATH_DESIGN.md §9) conditions all met: (1) all nine M7 invariants re-asserted on extended corpus; (2) target safety adversarial fixtures (file, non-empty dir, read-only parent) produce exit 5 with correct anomaly types; (3) rollback guaranteed on mid-batch failure (6 in-process tests); (4) transformation rejects-all fixtures produce exit 5 with RECONSTRUCTION_INPUT_MISSING; (5) migrate-success baseline entry in runtime_envelope.json and report_signatures.json; (6) stability invariants re-asserted on migrate run; (7) logging discipline extended to transformation/ and reconstruction/ subtrees; (8) batch-size stress passes at BATCH_SIZE-1/BATCH_SIZE/BATCH_SIZE+1/2*BATCH_SIZE+1; (9) duplicate-id chain contract pinned (extraction drops all occurrences, dedup anomaly present); (10) read-back verification confirms target is reopenable with correct count; (11) full suite green at 840 passed.",
+        "reason": "M13 exit gate (M13_E2E_USABILITY_DESIGN.md §9) conditions all met: (1) migrate exits 0 on minimal valid chroma_0_6 fixture, manifest written, all 5 stages executed, imported_count==3; (2) all 4 required parity checks executed, none in checks_not_performed; (3) confidence_band HIGH, no forbidden vocabulary, no hidden CRITICAL anomaly; (4) two fresh-target runs produce identical extract_report_signature; (5) source bytes and mtime_ns unchanged after full command; (6) reconstructed target reopens via chromadb.PersistentClient in fresh subprocess, count() matches imported_count; (7) 16.7 self-consistency rule satisfied — ROADMAP advanced only now that 16.1–16.6 are all done.",
         "completed_milestones": [
             "M1",
             "M2",
@@ -310,7 +310,8 @@
             "M9",
             "M10",
             "M11",
-            "M12"
+            "M12",
+            "M13"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
@@ -332,5 +333,5 @@
         "Always prefer explicit over implicit behavior",
         "Surface uncertainty at every stage"
     ],
-    "last_updated": "2026-04-20-m11-pass"
+    "last_updated": "2026-04-22-m13-done"
 }

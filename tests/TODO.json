@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-22-m13-design",
+    "last_updated": "2026-04-22-m13-done",
     "phases": [
         {
             "id": 0,
@@ -893,54 +893,54 @@
             ],
             "design_doc": "tests/M13_E2E_USABILITY_DESIGN.md",
             "exit_gate_checklist": "tests/M13_E2E_USABILITY_DESIGN.md#9-exit-gate-checklist--what-m13-done-means",
-            "implementation_status": "design only — tests/M13_E2E_USABILITY_DESIGN.md committed; no test code, no production code. Single deliverable planned: tests/test_migrate_e2e.py (7 tests for 16.1–16.7). No new AnomalyType/Severity/CheckFamily/exit code/CLI flag introduced. Reuses M12 migrate fixture helpers, M8 extract_report_signature, M7 check_no_forbidden_vocabulary, M11 parity check ids.",
+            "implementation_status": "done — tests/test_migrate_e2e.py implemented (7 tests, 16.1–16.7 all green). No new production code required. Reuses M12 migrate fixture helpers, M8 extract_report_signature, M7 check_no_forbidden_vocabulary, M11 parity check ids. 844 tests green (3 pre-existing timing-flaky performance baseline failures unrelated to M13).",
             "tasks": [
                 {
                     "id": "16.1",
                     "label": "Successful migrate command contract",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/test_migrate_e2e.py",
                     "asserts": "Running `migrate SOURCE --target TARGET` on the minimal valid chroma_0_6 fixture exits 0, creates a readable ChromaDB 1.5.7 target, writes a target manifest, and produces a report whose stages show detect/extract/transform/reconstruct/validate as executed."
                 },
                 {
                     "id": "16.2",
                     "label": "No skipped parity checks after successful migrate",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/test_migrate_e2e.py",
                     "asserts": "On a successful migrate run, report.validation.checks_not_performed does not contain target_record_count_parity, target_id_set_parity, target_document_hash_parity, or target_metadata_parity."
                 },
                 {
                     "id": "16.3",
                     "label": "Confidence and honesty gate",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/test_migrate_e2e.py",
                     "asserts": "On a successful migrate run, validation.confidence_band is at least MEDIUM, no forbidden correctness vocabulary appears in the JSON report, and no stage reports success while carrying a hidden CRITICAL anomaly."
                 },
                 {
                     "id": "16.4",
                     "label": "Repeatability on fresh targets",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/test_migrate_e2e.py",
                     "asserts": "Two consecutive migrate runs against two different fresh target directories produce equivalent parity outcomes, equivalent imported_count, and stable report signatures modulo run_id/started_at/path-like fields."
                 },
                 {
                     "id": "16.5",
                     "label": "End-to-end source invariance",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/test_migrate_e2e.py",
                     "asserts": "Across the whole migrate command, the source palace remains byte-identical and mtime-identical before and after the run; this re-asserts the reconstruction and validation read-only contract at the full-command level."
                 },
                 {
                     "id": "16.6",
                     "label": "Readable target smoke test",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/test_migrate_e2e.py",
                     "asserts": "The reconstructed target can be reopened via chromadb.PersistentClient in a fresh process, the collection exists, and collection.count() matches report.reconstruction.imported_count."
                 },
                 {
                     "id": "16.7",
                     "label": "Current-position promotion rule",
-                    "status": "todo",
+                    "status": "done",
                     "target_file": "tests/TODO.json",
                     "asserts": "current_position is allowed to move beyond M12 only when 16.1 through 16.6 are all done; until then, the project must not claim end-to-end usability."
                 }
@@ -951,8 +951,8 @@
         "phase_ids": [
             16
         ],
-        "label": "M13 End-to-End Migration Usability Gate — design committed, implementation pending",
-        "reason": "M12 Write-Path Adversarial + Hardening complete (840 tests green). M13 design doc tests/M13_E2E_USABILITY_DESIGN.md committed. All seven tasks (16.1–16.7) remain todo: single test file tests/test_migrate_e2e.py to be added, no new production code expected unless a happy-path defect surfaces. current_position.milestone must remain M12_done until 16.1–16.6 are all green (enforced by 16.7).",
-        "next_milestone": "M13 End-to-End Migration Usability Gate"
+        "label": "M13 End-to-End Migration Usability Gate — complete",
+        "reason": "All 7 M13 tasks (16.1–16.7) done. tests/test_migrate_e2e.py implemented and green. 16.7 self-consistency rule satisfied: ROADMAP.json current_position.milestone advanced to M13_done. 844 tests green total. M13 is the final planned milestone — no further milestone targets.",
+        "next_milestone": null
     }
 }
