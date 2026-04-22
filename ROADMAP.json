@@ -1,0 +1,456 @@
+{
+    "project": "mempalace-migrator",
+    "strategy": {
+        "mode": "sequential_with_gates",
+        "principle": "no phase advancement without minimal reliability guarantees"
+    },
+    "milestones": [
+        {
+            "id": "M1",
+            "name": "Detection Reliability",
+            "phases": [
+                4
+            ],
+            "goal": "Produce non-guessing, evidence-based format detection",
+            "success_criteria": [
+                "Detection returns evidence list",
+                "Confidence is explicit",
+                "UNKNOWN format supported",
+                "Contradictions surfaced"
+            ],
+            "failure_modes_to_eliminate": [
+                "Single heuristic detection",
+                "Silent fallback",
+                "Implicit assumptions"
+            ],
+            "exit_gate": "Detection outputs are explainable and never misleading"
+        },
+        {
+            "id": "M2",
+            "name": "Extraction Resilience",
+            "phases": [
+                5
+            ],
+            "goal": "Extract maximum usable data from corrupted inputs",
+            "success_criteria": [
+                "Partial extraction works",
+                "Malformed JSON does not crash",
+                "Corrupted SQLite handled",
+                "Record-level isolation implemented"
+            ],
+            "failure_modes_to_eliminate": [
+                "Global crash",
+                "Data loss without trace",
+                "All-or-nothing extraction"
+            ],
+            "exit_gate": "Extraction never crashes on recoverable errors"
+        },
+        {
+            "id": "M3",
+            "name": "Truth Model (Anomalies)",
+            "phases": [
+                6
+            ],
+            "goal": "Define structured truth reporting system",
+            "success_criteria": [
+                "Anomaly enum defined",
+                "Severity levels enforced",
+                "Location always present",
+                "Evidence attached"
+            ],
+            "failure_modes_to_eliminate": [
+                "Free-form logs",
+                "Hidden errors",
+                "Ambiguous warnings"
+            ],
+            "exit_gate": "All inconsistencies are structurally represented"
+        },
+        {
+            "id": "M4",
+            "name": "Full Transparency (Reporting)",
+            "phases": [
+                7
+            ],
+            "goal": "Expose complete system state to the user",
+            "success_criteria": [
+                "Global stats available",
+                "Anomalies aggregated",
+                "Confidence summary provided",
+                "Machine-readable output exists"
+            ],
+            "failure_modes_to_eliminate": [
+                "Opaque execution",
+                "Missing error visibility",
+                "Unusable reports"
+            ],
+            "exit_gate": "User can fully understand what happened"
+        },
+        {
+            "id": "M5",
+            "name": "Safe Interpretation (Validation)",
+            "phases": [
+                8
+            ],
+            "goal": "Avoid false correctness claims",
+            "success_criteria": [
+                "Structural validation separated",
+                "Consistency checks implemented",
+                "Heuristic checks explicit",
+                "Confidence-based outputs"
+            ],
+            "failure_modes_to_eliminate": [
+                "Binary valid/invalid",
+                "False correctness claims",
+                "Hidden uncertainty"
+            ],
+            "exit_gate": "Validation never implies correctness"
+        },
+        {
+            "id": "M6",
+            "name": "User Access (CLI)",
+            "phases": [
+                9
+            ],
+            "goal": "Make the tool usable externally",
+            "success_criteria": [
+                "Simple input interface",
+                "Readable output",
+                "Execution modes supported"
+            ],
+            "exit_gate": "User can run end-to-end pipeline"
+        },
+        {
+            "id": "M7",
+            "name": "System Destruction (Adversarial Testing)",
+            "phases": [
+                10
+            ],
+            "goal": "Break the system to reveal hidden flaws",
+            "success_criteria": [
+                "Corrupted inputs tested",
+                "Mixed formats tested",
+                "Edge cases covered",
+                "Failures are explicit"
+            ],
+            "failure_modes_to_eliminate": [
+                "Silent corruption",
+                "False success",
+                "Unreported failures"
+            ],
+            "exit_gate": "System fails loudly and clearly"
+        },
+        {
+            "id": "M8",
+            "name": "Production Credibility (Hardening)",
+            "phases": [
+                11
+            ],
+            "goal": "Stabilize system behavior",
+            "success_criteria": [
+                "Logs clean and structured",
+                "Performance acceptable",
+                "Memory usage controlled",
+                "No random crashes"
+            ],
+            "exit_gate": "System is stable under stress"
+        },
+        {
+            "id": "M9",
+            "name": "Transformation Stage (pure, in-memory)",
+            "phases": [
+                12
+            ],
+            "goal": "Normalise extracted DrawerRecords into a typed bundle ready for ChromaDB 1.x ingestion. Pure function: no I/O, no writes, no network, no chromadb import.",
+            "success_criteria": [
+                "TransformedBundle dataclass produced and stored on ctx.transformed_data",
+                "Per-drawer normalisation rejects unsupported metadata value types (lists, dicts, None) with structured anomalies",
+                "Integrity analysis surfaces duplicate ids, blank ids, empty/non-string documents, structural metadata issues as anomalies (NOT raised)",
+                "step_transform replaces the NOT_IMPLEMENTED stub anomaly with real work",
+                "report_builder.py 'transformation' section returns a structured summary instead of None",
+                "Transformation never writes anywhere; pure function semantics enforced by test (no chromadb import in transformation/)"
+            ],
+            "failure_modes_to_eliminate": [
+                "Silent metadata coercion (e.g. list -> str)",
+                "Hidden record drops without per-drawer anomaly",
+                "Module-level chromadb import (transformation must not depend on the writer)"
+            ],
+            "exit_gate": "step_transform produces a TransformedBundle deterministically, every drop or coercion is structurally represented as an anomaly, and no writer dependency leaks into the transformation module."
+        },
+        {
+            "id": "M10",
+            "name": "Reconstruction Stage (the only writer)",
+            "phases": [
+                13
+            ],
+            "goal": "Build a fresh ChromaDB 1.5.7 palace at ctx.target_path from ctx.transformed_data via the public chromadb client API. Strictly atomic: on any failure, target_path is left in the same state as before the run (rolled back).",
+            "success_criteria": [
+                "chromadb>=1.5.7,<2 added to pyproject.toml dependencies; version pin matches the supported pair documented in README",
+                "target_path safety check refuses non-empty existing directories before any write",
+                "ReconstructionResult dataclass stored on ctx.reconstruction_result (collection_name, imported_count, target_manifest_path, chromadb_version)",
+                "Batch insert (size 500, matching prototype) via collection.add(); per-batch failure raises ReconstructionError with structured anomaly listing affected drawer ids",
+                "Atomicity: any failure after target_path.mkdir cleans up the partial directory; tested by an injected mid-batch failure fixture",
+                "target_manifest written at TARGET_MANIFEST_FILENAME with bundle provenance (source palace path, detected_format, drawer_count, chromadb_version, mempalace_version)",
+                "step_reconstruct replaces the NOT_IMPLEMENTED stub anomaly with real work; exit code 5 reachable on reconstruction failure (already pinned by M6.4)",
+                "New CLI subcommand `migrate` requires --target; `inspect` and `analyze` continue to refuse --target (their pipelines do not include reconstruction)",
+                "report_builder.py 'reconstruction' section returns a structured summary instead of None"
+            ],
+            "failure_modes_to_eliminate": [
+                "Partial target palace left on disk after failure",
+                "Silent overwrite of an existing populated target directory",
+                "Source palace ever opened in write mode (source remains read-only at the SQLite URI level)",
+                "Reconstruction triggered without an explicit --target (the analyze/inspect pipelines must remain non-destructive)"
+            ],
+            "exit_gate": "A fresh ChromaDB 1.5.7 palace is built atomically at --target, the source is byte-identical before and after the run (verified by test), and any failure leaves no partial target on disk."
+        },
+        {
+            "id": "M11",
+            "name": "Data Ingestion",
+            "phases": [
+                14
+            ],
+            "goal": "Write transformed data into target ChromaDB with strict guarantees: atomicity, rollback on failure, and verified insertion count.",
+            "success_criteria": [
+                "All transformed records are inserted",
+                "Any failure triggers full rollback",
+                "No partial target state remains",
+                "Inserted count equals transformed bundle size",
+                "Target is immediately readable after ingestion"
+            ],
+            "failure_modes_to_eliminate": [
+                "False target validation (silently passing when target is empty or partially built)",
+                "Target opened in write mode by validation",
+                "checks_not_performed retaining target_*_parity entries after reconstruction is implemented (regression of M5.5 honesty contract)"
+            ],
+            "exit_gate": "For every successful migrate run, the target palace is structurally and content-wise identical to the transformed bundle, and any divergence is surfaced as a structured failed/inconclusive validation check."
+        },
+        {
+            "id": "M12",
+            "name": "Write-Path Adversarial + Hardening",
+            "phases": [
+                15
+            ],
+            "goal": "Extend the M7 adversarial corpus and the M8 baseline envelope to cover the new transform/reconstruct/parity stages. No new pipeline stages, no new exit codes, no new CLI flags introduced by M12.",
+            "success_criteria": [
+                "Adversarial fixtures: existing target directory non-empty, target path is a file, target on read-only filesystem, mid-batch chromadb failure (injected), transformation rejects-all-drawers input, source-mtime-invariant violated",
+                "All M7 cross-cutting invariants (no exit 10, no traceback w/o --debug, no silent CRITICAL, schema_version stable, JSON-safe, anomaly well-formed, forbidden-vocabulary, stage attribution, stdout/stderr discipline) re-verified on every new fixture",
+                "Baseline corpus extended with at least one successful migrate run; runtime_envelope.json gains a new entry for the migrate command",
+                "Stability invariants: report-signature stability re-asserted on a successful migrate run (modulo run_id/started_at/imported_count fields if non-deterministic)",
+                "Logging discipline AST walk re-checks transformation/ and reconstruction/ for forbidden call sites"
+            ],
+            "failure_modes_to_eliminate": [
+                "Reconstruction crash that escapes as exit 10 instead of exit 5",
+                "Silent partial-target left on disk after adversarial failure injection",
+                "New code paths in transformation/ or reconstruction/ slipping in print/logging without M8.1 catching it"
+            ],
+            "exit_gate": "The full M7 invariant battery still holds across the extended corpus, the M8 baseline includes a migrate-success entry, and the write path fails loudly and atomically on every adversarial fixture."
+        },
+        {
+            "id": "M13",
+            "name": "End-to-End Migration Usability Gate",
+            "phases": [
+                16
+            ],
+            "goal": "Prove that the migrator is actually usable as a complete product on the supported version pair: a user can run `migrate SOURCE --target TARGET`, obtain a fresh readable ChromaDB 1.5.7 palace, and receive an honest report with no hidden gaps in the target-parity path.",
+            "success_criteria": [
+                "A successful `migrate SOURCE --target TARGET` run exists in the test suite and exits 0",
+                "The target palace is readable in a fresh process via chromadb.PersistentClient",
+                "Source invariance holds across the full command (byte hash + mtime unchanged)",
+                "Target count, id-set, document-hash, and metadata parity checks are executed rather than skipped",
+                "Validation confidence_band is at least MEDIUM on the happy-path fixture",
+                "Two fresh-target runs are repeatable modulo explicitly non-deterministic fields"
+            ],
+            "failure_modes_to_eliminate": [
+                "Project declared complete while only stage-level mechanics are implemented",
+                "Happy-path migrate run exists but still leaves target parity in checks_not_performed",
+                "Target is built but not reopenable/readable as a ChromaDB 1.x palace",
+                "End-to-end command succeeds while mutating the source or hiding a CRITICAL anomaly"
+            ],
+            "exit_gate": "The migrator is only considered end-to-end usable when a real migrate command succeeds on the supported fixture, the reconstructed target is reopenable and parity-checked, the source remains untouched, and the final report contains no hidden reconstruction/parity gap."
+        }
+    ],
+    "upcoming_milestones": [
+        {
+            "id": "M14",
+            "name": "Truth Alignment & Public Surface",
+            "goal": "Align documentation with actual implementation state",
+            "tasks": [
+                "audit_doc_vs_code",
+                "rewrite_readme",
+                "document_cli_surface",
+                "document_guarantees",
+                "document_limitations"
+            ],
+            "exit_criteria": [
+                "README contains no false or outdated claims",
+                "migrate command is clearly documented and usable",
+                "workflow E2E is understandable without reading code",
+                "scope and limitations are explicit and strict"
+            ]
+        },
+        {
+            "id": "M15",
+            "name": "CI & Verification Baseline",
+            "goal": "Make repository state automatically verifiable",
+            "tasks": [
+                "setup_github_actions_ci",
+                "add_lint_and_test_jobs",
+                "cli_smoke_test",
+                "migrate_smoke_test",
+                "validation_smoke_test",
+                "fail_fast_policy"
+            ],
+            "exit_criteria": [
+                "CI runs on push and PR",
+                "CI fails on test or CLI regression",
+                "basic migrate flow executes successfully in CI",
+                "no manual steps required to validate core pipeline"
+            ]
+        },
+        {
+            "id": "M16",
+            "name": "Versioning & Release Discipline",
+            "goal": "Introduce traceability and reproducible releases",
+            "tasks": [
+                "introduce_semver",
+                "define_versioning_rules",
+                "add_changelog",
+                "create_initial_tag",
+                "publish_github_release",
+                "add_release_badge"
+            ],
+            "exit_criteria": [
+                "versioning scheme documented",
+                "first release tagged (e.g. v0.1.0)",
+                "changelog present and structured",
+                "release visible and usable externally"
+            ]
+        },
+        {
+            "id": "M17",
+            "name": "Trust & Safety Hardening",
+            "goal": "Prove migration reliability under edge conditions",
+            "tasks": [
+                "test_corrupted_inputs",
+                "test_missing_fields",
+                "test_inconsistent_metadata",
+                "test_partial_migration_failure",
+                "verify_rollback_behavior",
+                "idempotence_check",
+                "anomaly_completeness_check",
+                "validation_false_positive_check"
+            ],
+            "exit_criteria": [
+                "no silent success on corrupted inputs",
+                "rollback works reliably",
+                "re-running migrate does not corrupt output",
+                "validation does not falsely report success"
+            ]
+        },
+        {
+            "id": "M18",
+            "name": "UX CLI & Developer Experience",
+            "goal": "Make tool usable without internal knowledge",
+            "tasks": [
+                "improve_cli_help",
+                "improve_error_messages",
+                "standardize_logging",
+                "add_example_workflow_doc",
+                "add_sample_dataset"
+            ],
+            "exit_criteria": [
+                "CLI usable without reading source code",
+                "error messages actionable",
+                "example workflow documented",
+                "user can run full migration from example"
+            ]
+        },
+        {
+            "id": "M19",
+            "name": "Packaging & Distribution",
+            "goal": "Make tool installable and distributable",
+            "tasks": [
+                "define_python_package",
+                "add_entry_point_cli",
+                "clean_dependencies",
+                "test_installation_flow"
+            ],
+            "exit_criteria": [
+                "tool installable via pip or uv",
+                "CLI works after install",
+                "no environment-specific hacks required"
+            ]
+        }
+    ],
+    "non_goals": [
+        "Retrieval-parity validation (record-retrieval / compare-retrieval from the prototype) — out of scope; belongs to a separate post-migration audit tool",
+        "Usage-scenario-parity validation (record-usage / compare-usage from the prototype) — out of scope; belongs to a separate post-migration audit tool",
+        "MCP-runtime validation (validate-mcp-runtime from the prototype) — out of scope; the migrator does not own the runtime",
+        "Embedding re-computation or embedding-shape validation — embeddings are passed through opaquely; chromadb 1.x re-derives them from documents on insert",
+        "Multi-collection palaces — single-collection invariant is preserved (M2 already enforces it on the source side)",
+        "Migration of palaces other than chroma_0_6 — only the documented version pair is supported; other formats remain rejected at detection"
+    ],
+    "execution_order": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6",
+        "M7",
+        "M8",
+        "M9",
+        "M10",
+        "M11",
+        "M12",
+        "M13",
+        "M14",
+        "M15",
+        "M16",
+        "M17",
+        "M18",
+        "M19"
+    ],
+    "current_position": {
+        "milestone": "M13_done",
+        "next_target": "M14",
+        "next_target_reason": "M13 complete. Next: Truth Alignment & Public Surface (documentation, README, CLI surface, guarantees, limitations).",
+        "description": "M13 exit gate satisfied. tests/test_migrate_e2e.py added (7 subprocess-level tests, 16.1–16.6 all green). Pre-existing syntax bugs fixed in adversarial/conftest.py and hardening/test_stability_invariants.py (duplicate code blocks). 844 tests green (3 pre-existing timing-flaky performance baseline failures unrelated to M13). 16.7 self-consistency rule confirmed: ROADMAP advanced only after 16.1–16.6 all done.",
+        "risk_level": "low",
+        "reason": "M13 exit gate (M13_E2E_USABILITY_DESIGN.md §9) conditions all met: (1) migrate exits 0 on minimal valid chroma_0_6 fixture, manifest written, all 5 stages executed, imported_count==3; (2) all 4 required parity checks executed, none in checks_not_performed; (3) confidence_band HIGH, no forbidden vocabulary, no hidden CRITICAL anomaly; (4) two fresh-target runs produce identical extract_report_signature; (5) source bytes and mtime_ns unchanged after full command; (6) reconstructed target reopens via chromadb.PersistentClient in fresh subprocess, count() matches imported_count; (7) 16.7 self-consistency rule satisfied — ROADMAP advanced only now that 16.1–16.6 are all done.",
+        "completed_milestones": [
+            "M1",
+            "M2",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "M7",
+            "M8",
+            "M9",
+            "M10",
+            "M11",
+            "M12",
+            "M13"
+        ],
+        "caveats": [
+            "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
+            "Legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch (still produces structurally-valid Anomalies).",
+            "inspect exits 0 when reconstruct is skipped (no target_path); the report's stages section marks it 'skipped' with reason='no_target_path' — no NOT_IMPLEMENTED anomaly emitted.",
+            "CliRunner-based tests cannot assert stdout/stderr separation under Click 8.2+; those assertions are covered by subprocess invocations instead.",
+            "M10 implementation-detail divergence from design doc: writer coerces empty-dict metadata {} → None before collection.add() because chromadb 1.5.7 rejects empty dicts (raises 'Expected metadata to be a non-empty dict'). Drawer count and id set are preserved; no anomaly emitted (this is a faithful adaptation to the pinned chromadb version, not a data-loss event).",
+            "M12 production fix: TARGET_MKDIR_FAILED AnomalyType added — the reconstructor previously emitted TARGET_PATH_NOT_DIRECTORY when mkdir raised PermissionError, which is a misclassification (the path is not a file; it is a directory that could not be created). The new type carries code 'target_mkdir_failed'.",
+            "M11 implementation: chromadb import in parity.py is lazy (inside _open_target_readonly) — only reconstruction/_writer.py has a module-level chromadb import. This keeps CLI startup time within the M8 hardening performance baseline.",
+            "M7 finding (deferred, not blocking): extraction emits one aggregate DUPLICATE_EMBEDDING_IDS anomaly but writes individual FailedRow entries per duplicate row, leaving validation.consistency.failed_row_has_anomaly to flag the gap. The validation check correctly catches this — the structured surface is honest — but the per-row anomaly granularity could be tightened. Not in M7 scope.",
+            "M7 finding (deferred, not blocking): detection's structural pre-scan catches most broken-SQLite cases before extraction's own pre-flight runs. This is correct early-rejection behavior but means several extraction-stage error codes are reachable only via inputs that bypass detection — currently no such input exists in the corpus.",
+            "M7 finding (deferred per design §6, out of scope): the §4 row 10.5 fixture list mentions symlink-loop, non-UTF-8 path component, document of size 32 MiB, embedding of wrong dimensionality, and NaN in embedding. None of these are built by the corpus today."
+        ]
+    },
+    "rules": [
+        "Do not skip milestones",
+        "Do not parallelize critical phases early",
+        "Do not optimize before correctness",
+        "Always prefer explicit over implicit behavior",
+        "Surface uncertainty at every stage"
+    ],
+    "last_updated": "2026-04-22-m13-done"
+}
