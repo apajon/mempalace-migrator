@@ -390,11 +390,3 @@ def test_todo_promotion_rule_is_self_consistent() -> None:
             f"but 16.1–16.6 are not all 'done'.\n"
             f"task statuses: {task_statuses}"
         )
-            f"but not all 16.1–16.6 tasks are 'done'.\n"
-            f"task statuses: {task_statuses}"
-        )
-        assert "M13" not in completed, (
-            f"ROADMAP.json lists 'M13' in completed_milestones "
-            f"but 16.1–16.6 are not all 'done'.\n"
-            f"task statuses: {task_statuses}"
-        )
