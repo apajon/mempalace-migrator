@@ -204,19 +204,17 @@
         },
         {
             "id": "M11",
-            "name": "Target Parity Validation",
+            "name": "Data Ingestion",
             "phases": [
                 14
             ],
-            "goal": "Once reconstruction lands, lift the two parity checks currently parked in checks_not_performed (target_record_count_parity, target_id_set_parity) into real checks, and add document/metadata content parity. Validation never opens the target in write mode.",
+            "goal": "Write transformed data into target ChromaDB with strict guarantees: atomicity, rollback on failure, and verified insertion count.",
             "success_criteria": [
-                "target_record_count_parity check moved out of _SKIPPED_RECONSTRUCTION when ctx.reconstruction_result is non-None; reads count from a read-only chromadb client",
-                "target_id_set_parity check moved out of _SKIPPED_RECONSTRUCTION; missing_in_target and unexpected_in_target sets surfaced via structured anomaly evidence",
-                "target_document_hash_parity check (sha256 over normalised text) surfaces content mismatches per drawer id",
-                "target_metadata_parity check surfaces metadata key/value divergence per drawer id",
-                "target_embedding_presence check (best-effort, capped severity MEDIUM): if include=['embeddings'] is accessible, missing-embedding ids are surfaced; if not accessible, check status is inconclusive with reason",
-                "checks_not_performed list shrinks accordingly; report_builder.EXPLICITLY_NOT_CHECKED loses the two parity entries",
-                "All target-side reads use chromadb.PersistentClient with no writes; tested by source/target mtime invariant"
+                "All transformed records are inserted",
+                "Any failure triggers full rollback",
+                "No partial target state remains",
+                "Inserted count equals transformed bundle size",
+                "Target is immediately readable after ingestion"
             ],
             "failure_modes_to_eliminate": [
                 "False target validation (silently passing when target is empty or partially built)",
@@ -245,6 +243,29 @@
                 "New code paths in transformation/ or reconstruction/ slipping in print/logging without M8.1 catching it"
             ],
             "exit_gate": "The full M7 invariant battery still holds across the extended corpus, the M8 baseline includes a migrate-success entry, and the write path fails loudly and atomically on every adversarial fixture."
+        },
+        {
+            "id": "M13",
+            "name": "End-to-End Migration Usability Gate",
+            "phases": [
+                16
+            ],
+            "goal": "Prove that the migrator is actually usable as a complete product on the supported version pair: a user can run `migrate SOURCE --target TARGET`, obtain a fresh readable ChromaDB 1.5.7 palace, and receive an honest report with no hidden gaps in the target-parity path.",
+            "success_criteria": [
+                "A successful `migrate SOURCE --target TARGET` run exists in the test suite and exits 0",
+                "The target palace is readable in a fresh process via chromadb.PersistentClient",
+                "Source invariance holds across the full command (byte hash + mtime unchanged)",
+                "Target count, id-set, document-hash, and metadata parity checks are executed rather than skipped",
+                "Validation confidence_band is at least MEDIUM on the happy-path fixture",
+                "Two fresh-target runs are repeatable modulo explicitly non-deterministic fields"
+            ],
+            "failure_modes_to_eliminate": [
+                "Project declared complete while only stage-level mechanics are implemented",
+                "Happy-path migrate run exists but still leaves target parity in checks_not_performed",
+                "Target is built but not reopenable/readable as a ChromaDB 1.x palace",
+                "End-to-end command succeeds while mutating the source or hiding a CRITICAL anomaly"
+            ],
+            "exit_gate": "The migrator is only considered end-to-end usable when a real migrate command succeeds on the supported fixture, the reconstructed target is reopenable and parity-checked, the source remains untouched, and the final report contains no hidden reconstruction/parity gap."
         }
     ],
     "non_goals": [
@@ -267,15 +288,16 @@
         "M9",
         "M10",
         "M11",
-        "M12"
+        "M12",
+        "M13"
     ],
     "current_position": {
-        "milestone": "M11_done",
-        "next_target": "M12",
-        "next_target_reason": "M11 Target Parity Validation complete and reviewed PASS (775 tests green: 716 core + 59 hardening). validation/parity.py implements 5 parity checks (target_record_count_parity, target_id_set_parity, target_document_hash_parity, target_metadata_parity, target_embedding_presence) read-only against the freshly-built target palace. 7 new AnomalyType members. EXPLICITLY_NOT_CHECKED shrunk 9→7. chromadb import in parity.py is lazy (inside _open_target_readonly) to keep CLI startup fast and hardening baselines unaffected. M12 must extend the M7 adversarial corpus and M8 hardening baseline envelope to cover the write path (transform/reconstruct/parity stages) and add a migrate-success entry to the hardening baseline corpus.",
-        "description": "M11 exit gate satisfied. src/mempalace_migrator/validation/parity.py: single new module with 5 parity checks + lazy chromadb import (only inside _open_target_readonly, never at module level). validation/__init__.py: branches on ctx.reconstruction_result, calling run_parity_checks when present; _skipped_when_no_reconstruction() returns 5 entries with reason='reconstruction_not_run'. report_builder.EXPLICITLY_NOT_CHECKED: 9→7 (target_record_count_parity and target_id_set_parity removed). 7 new AnomalyType members under '# --- Validation: target parity ---'. CheckFamily gains 'parity'; SkippedReason gains 'reconstruction_not_run'. Pre-existing IndentationError duplicates in pipeline.py and cli/main.py fixed. 24 new parity tests (test_validation_parity.py) + extensions to 5 existing test files. Full suite: 775 tests green.",
+        "milestone": "M12_done",
+        "next_target": "M13",
+        "next_target_reason": "M12 Write-Path Adversarial + Hardening complete (840 tests green: 392 adversarial + 61 hardening + remaining core). All 11 sub-tasks done. Phase 16 end-to-end gate (TODO.json 16.7) not yet satisfied — current_position may not advance past M13 until 16.1–16.6 are all done. M13 must prove the migrator is actually usable end-to-end on the supported version pair.",
+        "description": "M12 exit gate satisfied. 6 new adversarial test files: test_reconstruction_target.py (3), test_reconstruction_rollback.py (6, in-process), test_transformation_pathological.py (7), test_reconstruction_stress.py (4 parametrised), test_reconstruction_duplicates.py (1), test_reconstruction_readback.py (3). Migrate-success baseline entry added to runtime_envelope.json and report_signatures.json. extract_report_signature extended with reconstruct_stable {imported_count, collection_name, batch_size}. Logging discipline coverage guard added. One production fix: TARGET_MKDIR_FAILED AnomalyType — mkdir PermissionError was misclassified as TARGET_PATH_NOT_DIRECTORY. write_manifest centralised mkdir. rebaseline.py fixed (unique per-run targets, source in subdir, single main guard). Full suite: 840 tests green.",
         "risk_level": "low",
-        "reason": "M11 exit gate (M11_PARITY_DESIGN.md §12) conditions all met: (1) 7 new AnomalyType members registered (TARGET_OPEN_FAILED, TARGET_RECORD_COUNT_MISMATCH, TARGET_ID_SET_MISMATCH, TARGET_DOCUMENT_HASH_MISMATCH, TARGET_METADATA_MISMATCH, TARGET_EMBEDDING_MISSING, TARGET_EMBEDDING_PROBE_INCONCLUSIVE); (2) CheckFamily 'parity' + SkippedReason 'reconstruction_not_run' added to _types.py; (3) parity.py chromadb import is LAZY (inside _open_target_readonly — startup-safe, hardening baselines unaffected); (4) 5 parity checks: count + id_set + doc_hash + metadata + embedding_presence; (5) validate() branches on ctx.reconstruction_result; (6) EXPLICITLY_NOT_CHECKED shrunk 9→7; (7) AST purity tests updated: all validation modules including parity.py now forbidden from module-level chromadb import; (8) test_validate_target_mtime_invariant asserts target mtime unchanged after step_validate; (9) 24 new parity tests + 5 extended existing test files; (10) full suite green at 775 passed; (11) TODO.json phase 14 status=done. Out-of-scope items (write-path adversarial corpus, migrate-success baseline entry) correctly remain unimplemented and are owned by M12.",
+        "reason": "M12 exit gate (M12_WRITE_PATH_DESIGN.md §9) conditions all met: (1) all nine M7 invariants re-asserted on extended corpus; (2) target safety adversarial fixtures (file, non-empty dir, read-only parent) produce exit 5 with correct anomaly types; (3) rollback guaranteed on mid-batch failure (6 in-process tests); (4) transformation rejects-all fixtures produce exit 5 with RECONSTRUCTION_INPUT_MISSING; (5) migrate-success baseline entry in runtime_envelope.json and report_signatures.json; (6) stability invariants re-asserted on migrate run; (7) logging discipline extended to transformation/ and reconstruction/ subtrees; (8) batch-size stress passes at BATCH_SIZE-1/BATCH_SIZE/BATCH_SIZE+1/2*BATCH_SIZE+1; (9) duplicate-id chain contract pinned (extraction drops all occurrences, dedup anomaly present); (10) read-back verification confirms target is reopenable with correct count; (11) full suite green at 840 passed.",
         "completed_milestones": [
             "M1",
             "M2",
@@ -287,7 +309,8 @@
             "M8",
             "M9",
             "M10",
-            "M11"
+            "M11",
+            "M12"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
@@ -295,7 +318,7 @@
             "inspect exits 0 when reconstruct is skipped (no target_path); the report's stages section marks it 'skipped' with reason='no_target_path' — no NOT_IMPLEMENTED anomaly emitted.",
             "CliRunner-based tests cannot assert stdout/stderr separation under Click 8.2+; those assertions are covered by subprocess invocations instead.",
             "M10 implementation-detail divergence from design doc: writer coerces empty-dict metadata {} → None before collection.add() because chromadb 1.5.7 rejects empty dicts (raises 'Expected metadata to be a non-empty dict'). Drawer count and id set are preserved; no anomaly emitted (this is a faithful adaptation to the pinned chromadb version, not a data-loss event).",
-            "M10 caveat: a successful `migrate` run is not yet in the hardening baseline corpus — owned by M12.5 (baseline migrate-success entry). Existing baselines cover analyze and inspect only.",
+            "M12 production fix: TARGET_MKDIR_FAILED AnomalyType added — the reconstructor previously emitted TARGET_PATH_NOT_DIRECTORY when mkdir raised PermissionError, which is a misclassification (the path is not a file; it is a directory that could not be created). The new type carries code 'target_mkdir_failed'.",
             "M11 implementation: chromadb import in parity.py is lazy (inside _open_target_readonly) — only reconstruction/_writer.py has a module-level chromadb import. This keeps CLI startup time within the M8 hardening performance baseline.",
             "M7 finding (deferred, not blocking): extraction emits one aggregate DUPLICATE_EMBEDDING_IDS anomaly but writes individual FailedRow entries per duplicate row, leaving validation.consistency.failed_row_has_anomaly to flag the gap. The validation check correctly catches this — the structured surface is honest — but the per-row anomaly granularity could be tightened. Not in M7 scope.",
             "M7 finding (deferred, not blocking): detection's structural pre-scan catches most broken-SQLite cases before extraction's own pre-flight runs. This is correct early-rejection behavior but means several extraction-stage error codes are reachable only via inputs that bypass detection — currently no such input exists in the corpus.",
