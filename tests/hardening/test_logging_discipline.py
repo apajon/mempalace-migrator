@@ -297,3 +297,28 @@ def test_no_forbidden_call_sites_in_production_code():
     ), f"Forbidden call sites found in production code ({len(all_violations)} violation(s)):\n" + "\n".join(
         f"  {v}" for v in all_violations
     )
+
+
+def test_sweep_covers_transformation_and_reconstruction_subtrees():
+    """M12 §4.7 — the sweep must include files from transformation/ and reconstruction/.
+
+    This guards against a future refactor that moves those subtrees to a path
+    not under _SRC_ROOT, which would silently exclude them from the discipline
+    check.  One file from each subtree is sufficient proof of coverage.
+    """
+    source_files = collect_source_files(_SRC_ROOT)
+    paths = [str(p) for p in source_files]
+
+    transformation_files = [p for p in paths if "/transformation/" in p]
+    assert transformation_files, (
+        f"No transformation/ files found in the logging-discipline sweep.\n"
+        f"_SRC_ROOT={_SRC_ROOT}\n"
+        f"Confirm transformation/ is still a subdirectory of src/mempalace_migrator/."
+    )
+
+    reconstruction_files = [p for p in paths if "/reconstruction/" in p]
+    assert reconstruction_files, (
+        f"No reconstruction/ files found in the logging-discipline sweep.\n"
+        f"_SRC_ROOT={_SRC_ROOT}\n"
+        f"Confirm reconstruction/ is still a subdirectory of src/mempalace_migrator/."
+    )

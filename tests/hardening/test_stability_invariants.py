@@ -22,7 +22,9 @@ from typing import Any
 import pytest
 
 from tests.adversarial.conftest import CorpusEntry, run_cli
-from tests.hardening.conftest import BASELINE_CORPUS, extract_report_signature, load_report_signatures
+from tests.hardening.conftest import (BASELINE_CORPUS,
+                                      extract_report_signature,
+                                      load_report_signatures)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -34,14 +36,24 @@ def _ids(entries: tuple[CorpusEntry, ...]) -> list[str]:
 
 
 def _run_baseline_entry(
-    entry: CorpusEntry, palace, *, json_output: bool = True
+    entry: CorpusEntry, palace, *, json_output: bool = True, target_path=None
 ) -> tuple[int, str, str, dict[str, Any] | None]:
     """Run the CLI for *entry* and return (rc, stdout, stderr, report_or_None)."""
-    args: list[str] = []
-    if json_output:
-        args.append("--json-output")
-    args.extend([entry.pipeline, str(palace)])
-    result = run_cli(args)
+    from tests.adversarial.conftest import run_migrate_cli
+
+    if entry.pipeline == "migrate":
+        if target_path is None:
+            from pathlib import Path
+
+            target_path = Path(palace).parent / "_baseline_target"
+        result = run_migrate_cli(palace, target_path, json_output=json_output)
+    else:
+        args: list[str] = []
+        if json_output:
+            args.append("--json-output")
+        args.extend([entry.pipeline, str(palace)])
+        result = run_cli(args)
+
     report: dict[str, Any] | None = None
     if result.stdout.strip():
         try:
@@ -70,7 +82,8 @@ def baseline_run(request, tmp_path, _run_cache):
     if entry.cid in _run_cache:
         return _run_cache[entry.cid]
     palace = entry.builder(tmp_path)
-    rc, stdout, stderr, report = _run_baseline_entry(entry, palace)
+    target = tmp_path / "_baseline_target" if entry.pipeline == "migrate" else None
+    rc, stdout, stderr, report = _run_baseline_entry(entry, palace, target_path=target)
     record = {
         "entry": entry,
         "palace": palace,
@@ -121,8 +134,10 @@ def test_report_signature_matches_baseline(baseline_run):
 def test_report_is_deterministic(entry: CorpusEntry, tmp_path):
     """Two consecutive CLI invocations for the same palace produce the same signature."""
     palace = entry.builder(tmp_path)
-    rc1, stdout1, stderr1, report1 = _run_baseline_entry(entry, palace)
-    rc2, stdout2, stderr2, report2 = _run_baseline_entry(entry, palace)
+    target1 = tmp_path / "_det_target_1" if entry.pipeline == "migrate" else None
+    target2 = tmp_path / "_det_target_2" if entry.pipeline == "migrate" else None
+    rc1, stdout1, stderr1, report1 = _run_baseline_entry(entry, palace, target_path=target1)
+    rc2, stdout2, stderr2, report2 = _run_baseline_entry(entry, palace, target_path=target2)
 
     assert rc1 == rc2, f"[{entry.cid}] exit codes differ between runs: {rc1} vs {rc2}"
     if report1 is None or report2 is None:
@@ -133,6 +148,10 @@ def test_report_is_deterministic(entry: CorpusEntry, tmp_path):
     sig1 = extract_report_signature(report1, rc1)
     sig2 = extract_report_signature(report2, rc2)
     assert sig1 == sig2, (
+        f"[{entry.cid}] report signatures differ between two consecutive runs.\n"
+        f"run1: {json.dumps(sig1, indent=2)}\n"
+        f"run2: {json.dumps(sig2, indent=2)}"
+    )
         f"[{entry.cid}] report signatures differ between two consecutive runs.\n"
         f"run1: {json.dumps(sig1, indent=2)}\n"
         f"run2: {json.dumps(sig2, indent=2)}"

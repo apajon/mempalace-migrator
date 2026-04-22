@@ -44,13 +44,30 @@ REPORT_SIGNATURES_PATH: Path = BASELINES_DIR / "report_signatures.json"
 def extract_report_signature(report: dict[str, Any], exit_code: int) -> dict[str, Any]:
     """Distil a full report dict down to the stable, non-volatile signature fields.
 
-    Fields excluded: ``run_id``, ``started_at``, ``completed_at`` (they change per
-    run and must not affect the comparison).
+    Fields excluded from the signature:
+      - ``run_id``, ``started_at``, ``completed_at`` — change per run.
+      - ``stages.reconstruct.result.target_manifest_path`` — absolute, machine-specific.
+      - ``stages.reconstruct.result.chromadb_version`` — environment-sensitive.
+      - Any timing/duration field under ``stages.reconstruct.result``.
+
+    ``imported_count`` is intentionally *not* redacted — its stability is part of
+    the signature (positive counterpart of the 15.11 read-back check).
     """
     anomaly_summary = report.get("anomaly_summary") or {}
     stages = report.get("stages") or {}
     stages_executed = sorted(k for k, v in stages.items() if (v or {}).get("status") == "executed")
-    return {
+
+    # Stable reconstruction fields (absent for non-migrate runs).
+    reconstruct_stable: dict[str, Any] | None = None
+    reconstruction = report.get("reconstruction")
+    if reconstruction:
+        reconstruct_stable = {
+            "imported_count": reconstruction.get("imported_count"),
+            "collection_name": reconstruction.get("collection_name"),
+            "batch_size": reconstruction.get("batch_size"),
+        }
+
+    sig: dict[str, Any] = {
         "schema_version": report.get("schema_version"),
         "outcome": report.get("outcome"),
         "top_severity": anomaly_summary.get("top_severity"),
@@ -58,6 +75,9 @@ def extract_report_signature(report: dict[str, Any], exit_code: int) -> dict[str
         "stages_executed": stages_executed,
         "exit_code": exit_code,
     }
+    if reconstruct_stable is not None:
+        sig["reconstruct_stable"] = reconstruct_stable
+    return sig
 
 
 def load_runtime_envelope() -> dict[str, Any]:
@@ -72,6 +92,12 @@ def load_runtime_envelope() -> dict[str, Any]:
 
 def load_report_signatures() -> dict[str, Any]:
     """Load the committed report signatures, skip the test if the file is absent."""
+    if not REPORT_SIGNATURES_PATH.exists():
+        pytest.skip(
+            reason="baseline_missing: report_signatures.json not committed; run tests/hardening/rebaseline.py",
+            allow_module_level=False,
+        )
+    return json.loads(REPORT_SIGNATURES_PATH.read_text(encoding="utf-8"))
     if not REPORT_SIGNATURES_PATH.exists():
         pytest.skip(
             reason="baseline_missing: report_signatures.json not committed; run tests/hardening/rebaseline.py",

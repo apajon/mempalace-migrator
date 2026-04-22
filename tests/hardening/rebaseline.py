@@ -123,15 +123,19 @@ def _measure_run(args: list[str]) -> tuple[float, int | None, str, str, int]:
 
 def _baseline_entry(entry: CorpusEntry, palace_path: Path) -> dict[str, Any]:
     """Measure *entry* and return the combined baseline record."""
-    args = ["--json-output", entry.pipeline, str(palace_path)]
-
     wall_times: list[float] = []
     rss_values: list[int] = []
     last_stdout = ""
     last_stderr = ""
     last_rc = -1
 
-    for _ in range(N_RUNS):
+    for run_idx in range(N_RUNS):
+        if entry.pipeline == "migrate":
+            # Each run needs a fresh target (reconstructor rejects non-empty dirs).
+            target_path = palace_path.parent / f"_rebaseline_target_{run_idx}"
+            args = ["--json-output", "migrate", str(palace_path), "--target", str(target_path)]
+        else:
+            args = ["--json-output", entry.pipeline, str(palace_path)]
         elapsed, rss, stdout, stderr, rc = _measure_run(args)
         wall_times.append(elapsed)
         if rss is not None:
@@ -180,9 +184,11 @@ def main() -> None:
     for idx, entry in enumerate(BASELINE_CORPUS, 1):
         print(f"[{idx}/{total}] {entry.cid} ({entry.pipeline}) ...", flush=True)
         with tempfile.TemporaryDirectory(prefix=f"rebaseline_{entry.cid}_") as tmp:
-            palace = entry.builder(Path(tmp))
+            # Build palace inside a "source/" subdir so that palace_path.parent
+            # points to the unique temp dir (not /tmp/), keeping target dirs
+            # scoped within this temp dir and cleaned up on exit.
+            palace = entry.builder(Path(tmp) / "source")
             record = _baseline_entry(entry, palace)
-
         runtime_records.append(
             {
                 "cid": record["cid"],
