@@ -1,11 +1,12 @@
 # mempalace-migrator
 
-**Experimental** reconstruction tool. Reads a MemPalace stored under
-ChromaDB `0.6.x` and attempts to rebuild an equivalent palace under
-ChromaDB `1.x`.
+Reconstruction-based migration tool. Reads a MemPalace stored under
+ChromaDB `0.6.x` and rebuilds it as a new palace under ChromaDB `1.x`.
 
-This is a research-grade utility. Semantic correctness of the output
-is not guaranteed. It is not a migration product.
+Scope is narrow and intentionally constrained: one supported version
+pair, one collection name, tested against a small fixture. Semantic
+correctness of the reconstructed palace is not guaranteed. See section
+4 for the exact supported scope.
 
 ---
 
@@ -27,17 +28,22 @@ It works by **reconstruction**, not by in-place migration:
 There is no shared format between the two versions. The tool does not
 upgrade a database; it transcribes what it can read into a new one.
 
-**Current status:** detection, extraction, and structured reporting are
-implemented. Transformation, reconstruction, and validation are present
-as explicit stubs and perform no work. The only useful command at this
-stage is `analyze`.
+**Current status:** all five pipeline stages are implemented.
+`migrate` runs the full pipeline end-to-end and writes a target palace.
+`analyze` remains available for read-only inspection without writing.
+The supported scope is narrow: one version pair, one collection name.
+See section 4.
 
 ---
 
 ## 2. What this project is NOT
 
-- Not a migration tool. There is no rollback, no in-place upgrade, and
-  no compatibility shim.
+- Not an in-place upgrade tool. The source palace is never modified.
+  A partial write to the target is rolled back automatically on pipeline
+  failure, but a completed run cannot be undone without deleting the
+  target directory manually.
+- Not a general migration utility. Scope is hard-coded to the single
+  version pair in section 4.
 - Not a general ChromaDB conversion utility. It is hard-coded to one
   source structure and one target version.
 - Not guaranteed to produce a target palace equivalent to the source.
@@ -149,16 +155,32 @@ uv venv .venv --python 3.12
 uv pip install --python .venv/bin/python -e .
 ```
 
-Analyse a source palace without writing anything:
+Available commands:
 
 ```bash
+# Read-only: detect format and extract records. No target written.
 .venv/bin/mempalace-migrator analyze /path/to/source-palace
 .venv/bin/mempalace-migrator analyze /path/to/source-palace --json-output
+
+# Full migration: detect → extract → transform → reconstruct → validate.
+# TARGET must not exist or be empty. Partial writes are rolled back on failure.
+.venv/bin/mempalace-migrator migrate /path/to/source-palace --target /path/to/new-palace
+.venv/bin/mempalace-migrator migrate /path/to/source-palace --target /path/to/new-palace --json-output
+
+# Inspect without writing: detect, extract, transform, validate (no target).
+# Parity checks are listed as not-performed (no reconstruction ran).
+.venv/bin/mempalace-migrator inspect /path/to/source-palace
+
+# Re-render a JSON report saved from a previous run.
+.venv/bin/mempalace-migrator report /path/to/report.json
 ```
 
-`analyze` runs detection and extraction only. It does not produce a
-target palace. The reconstruction and validation steps are not yet
-implemented and are exposed as explicit stubs.
+`analyze` runs detection and extraction only. It does not write a
+target palace.
+
+`migrate` runs all five stages and writes a new ChromaDB `1.x` palace at
+`--target`. The source palace is never modified. See section 3 for
+limitations that remain even after a successful run.
 
 ---
 

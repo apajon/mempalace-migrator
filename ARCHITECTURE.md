@@ -18,19 +18,33 @@ src/mempalace_migrator/
 │   ├── __init__.py
 │   ├── context.py        # MigrationContext, Anomaly, Severity
 │   ├── errors.py         # MigratorError hierarchy (stage + code)
-│   └── pipeline.py       # Step type, run_pipeline, ANALYZE/FULL pipelines
+│   └── pipeline.py       # Step type, run_pipeline, ANALYZE/FULL/MIGRATE pipelines
 ├── detection/            # Identify the source palace.
 │   ├── __init__.py
 │   └── format_detector.py
 ├── extraction/           # Read source palace (read-only).
 │   ├── __init__.py
 │   └── chroma_06_reader.py
-├── transformation/       # Pure data shaping. No I/O. (stub)
-│   └── __init__.py
-├── reconstruction/       # Write target palace via Chroma 1.x client. (stub)
-│   └── __init__.py
-├── validation/           # Post-write checks against target. (stub)
-│   └── __init__.py
+├── transformation/       # Pure data shaping. No I/O.
+│   ├── __init__.py
+│   ├── _analyze.py
+│   ├── _normalize.py
+│   ├── _types.py
+│   └── transformer.py
+├── reconstruction/       # Write target palace via Chroma 1.x client.
+│   ├── __init__.py
+│   ├── _manifest.py
+│   ├── _safety.py
+│   ├── _types.py
+│   ├── _writer.py
+│   └── reconstructor.py
+├── validation/           # Post-write checks against target.
+│   ├── __init__.py
+│   ├── _types.py
+│   ├── consistency.py
+│   ├── heuristics.py
+│   ├── parity.py
+│   └── structural.py
 └── reporting/            # Render MigrationContext -> structured report.
     ├── __init__.py
     └── report_builder.py
@@ -74,20 +88,35 @@ machine-readable reason per excluded row. Pre-flight failures
 `ExtractionError`. Per-row failures are collected, never raised.
 
 ### `transformation`
-Pure functions. Input: `ExtractionResult`. Output: `TransformedRecords`
+Pure functions. Input: `ExtractionResult`. Output: `TransformedBundle`
 ready for the target client. **No SQLite. No Chroma client. No filesystem.**
-Currently a stub; the boundary is reserved so transformation logic can be
-added without disturbing extraction or reconstruction.
+Normalises extracted drawers: validates IDs, coerces metadata values,
+deduplicates. Drops records that fail per-record checks and records each
+drop as a structured anomaly. Deterministic; follows input drawer order.
 
 ### `reconstruction`
 Open a Chroma `1.x` client at `target_path`. Insert transformed records
-through the public `1.x` API. **The only module allowed to write.** The
-target path must be empty or explicitly overwritable. Currently a stub.
+through the public `1.x` API in batches of 500. **The only module
+allowed to write.** The target path must not exist or be empty. On any
+failure after the target directory is created, the partial directory is
+removed (rollback). A `reconstruction-target-manifest.json` is written
+on success.
 
 ### `validation`
-Read back from the freshly written target via the `1.x` client and verify
-what the tool can verify (count parity, ID set parity, document presence).
-Records anomalies; does not mutate. Currently a stub.
+Runs four families of checks after extraction (and optionally after
+reconstruction). Never raises `MigratorError`; all findings are anomalies,
+never pipeline aborts.
+- **Structural**: shape of objects produced by upstream stages.
+- **Consistency**: cross-checks between sub-structures (e.g. ID present
+  in both `drawers` and `failed_rows`).
+- **Heuristic**: plausibility signals with explicit thresholds.
+- **Parity**: read-only comparison of the freshly-written target palace
+  against the transformed bundle. Only runs when reconstruction ran;
+  otherwise listed in `checks_not_performed` with reason
+  `reconstruction_not_run`.
+Produces a `ValidationResult` with trichotomous outcomes
+(passed/failed/inconclusive), a `confidence_band`, and an explicit
+`checks_not_performed` list.
 
 ### `reporting`
 Take a `MigrationContext` (with optional terminal failure) and render the
@@ -118,9 +147,9 @@ Fields (see [src/mempalace_migrator/core/context.py](src/mempalace_migrator/core
 | `started_at: str` | auto (UTC ISO) | Run start timestamp. |
 | `detected_format` | `detection` | `DetectionResult`. |
 | `extracted_data` | `extraction` | `ExtractionResult`. |
-| `transformed_data` | `transformation` | Stub. |
-| `reconstruction_result` | `reconstruction` | Stub. |
-| `validation_result` | `validation` | Stub. |
+| `transformed_data` | `transformation` | `TransformedBundle`. |
+| `reconstruction_result` | `reconstruction` | `ReconstructionResult`. `None` when no target path. |
+| `validation_result` | `validation` | `ValidationResult`. |
 | `anomalies: list[Anomaly]` | any stage | Ordered structured findings. |
 | `report: dict` | `reporting` | Final emitted artifact. |
 
@@ -143,9 +172,14 @@ understand.
 Pipelines are **ordered tuples of steps**, declared in
 [src/mempalace_migrator/core/pipeline.py](src/mempalace_migrator/core/pipeline.py):
 
-- `ANALYZE_PIPELINE = (step_detect, step_extract)` — read-only, no target.
-- `FULL_PIPELINE   = (step_detect, step_extract, step_transform,
-  step_reconstruct, step_validate)` — full reconstruction.
+- `ANALYZE_PIPELINE  = (step_detect, step_extract)` — read-only, no target.
+- `FULL_PIPELINE     = (step_detect, step_extract, step_transform,
+  step_reconstruct, step_validate)` — used by `inspect`; since no
+  `target_path` is set, `step_reconstruct` records a skip and parity
+  checks are listed as not-performed.
+- `MIGRATE_PIPELINE  = (step_detect, step_extract, step_transform,
+  step_reconstruct, step_validate)` — used by `migrate`; `target_path`
+  is set so the full write path runs.
 
 `run_pipeline(ctx, steps)` is the only orchestrator:
 
@@ -220,13 +254,17 @@ A condition that invalidates the entire run. The stage:
 `run_pipeline` halts the loop, builds the report, and re-raises. The CLI
 maps `stage` to an exit code via a lookup table:
 
-| Stage           | Exit code |
-|-----------------|-----------|
-| `detect`        | `2`       |
-| `extract`       | `3`       |
-| `report`        | `6`       |
-| anything else   | `10`      |
-| success         | `0`       |
+| Stage / condition        | Exit code |
+|--------------------------|----------|
+| `detect`                 | `2`       |
+| `extract`                | `3`       |
+| `transform`              | `4`       |
+| `reconstruct`            | `5`       |
+| `report`                 | `6`       |
+| `validate`               | `7`       |
+| success + CRITICAL anomaly | `8`     |
+| anything else            | `10`      |
+| success, no CRITICAL     | `0`       |
 
 Examples: unsupported source format, confidence below threshold,
 unsupported version pair, PRAGMA integrity failure, uncheckpointed WAL,
@@ -263,9 +301,9 @@ reference, a duplicate ID.
 - **Stages communicate only through `ctx` and typed result objects.** No
   module imports a sibling stage's internals. Stages may import `core`
   freely; nothing else.
-- **Pipelines are data, not code.** `ANALYZE_PIPELINE` and
-  `FULL_PIPELINE` are tuples of `Step` callables. New flows are new
-  tuples. The orchestrator is one function.
+- **Pipelines are data, not code.** `ANALYZE_PIPELINE`, `FULL_PIPELINE`,
+  and `MIGRATE_PIPELINE` are tuples of `Step` callables. New flows are
+  new tuples. The orchestrator is one function.
 - **One writer.** Only `reconstruction` writes. Source is opened
   read-only at the SQLite URI level. There is no codepath that can
   mutate the source.
@@ -281,9 +319,6 @@ reference, a duplicate ID.
 - **No `--force`.** Strict boundaries are enforced in `step_detect`:
   unsupported classification, low confidence, unsupported version pair
   all abort. There is no escape hatch.
-- **Stubs are explicit.** `transform`, `reconstruct`, `validate` each
-  record a `not_implemented` anomaly so reports never look "clean" by
-  accident while large parts of the pipeline are inert.
 - **Reporting is pure.** No I/O, no env-dependent formatting. The CLI
   decides text vs. JSON; the builder produces one canonical dict shape.
 - **CLI is a thin shell.** Click parses argv, maps exceptions to exit
