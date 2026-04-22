@@ -57,7 +57,7 @@ def reconstruct(ctx: MigrationContext) -> ReconstructionResult:
     except OSError as exc:
         _emit(
             ctx,
-            type=AnomalyType.TARGET_PATH_NOT_DIRECTORY,
+            type=AnomalyType.TARGET_MKDIR_FAILED,
             severity=Severity.CRITICAL,
             message=f"could not create target directory: {exc}",
             evidence=[
@@ -70,7 +70,7 @@ def reconstruct(ctx: MigrationContext) -> ReconstructionResult:
         )
         raise ReconstructionError(
             stage=_STAGE,
-            code="target_path_mkdir_failed",
+            code="target_mkdir_failed",
             summary=f"could not create target directory: {exc}",
         ) from exc
 
@@ -345,6 +345,15 @@ def _safe_attr(obj: object, attr: str, default: object) -> object:
         return getattr(obj, attr)
     except AttributeError:
         return default
+
+
+def _get_chromadb_version() -> str:
+    try:
+        import chromadb  # noqa: PLC0415
+
+        return str(chromadb.__version__)
+    except Exception:
+        return "unknown"
 
 
 def _get_chromadb_version() -> str:

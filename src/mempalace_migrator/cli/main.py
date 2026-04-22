@@ -173,7 +173,7 @@ def inspect(click_ctx: click.Context, source: Path) -> None:
 @click.option(
     "--target",
     required=True,
-    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    type=click.Path(file_okay=True, dir_okay=True, path_type=Path),
     help="Destination directory for the new ChromaDB 1.x palace. Must not exist (or be empty).",
 )
 @click.pass_context

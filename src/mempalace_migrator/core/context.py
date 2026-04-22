@@ -138,6 +138,7 @@ class AnomalyType(str, Enum):
     RECONSTRUCTION_INPUT_MISSING = "reconstruction_input_missing"
     TARGET_PATH_NOT_DIRECTORY = "target_path_not_directory"
     TARGET_PATH_NOT_EMPTY = "target_path_not_empty"
+    TARGET_MKDIR_FAILED = "target_mkdir_failed"
     CHROMADB_CLIENT_FAILED = "chromadb_client_failed"
     CHROMADB_COLLECTION_CREATE_FAILED = "chromadb_collection_create_failed"
     CHROMADB_BATCH_INSERT_FAILED = "chromadb_batch_insert_failed"
