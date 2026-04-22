@@ -29,8 +29,10 @@ from pathlib import Path
 
 import pytest
 
-from mempalace_migrator.detection.format_detector import MANIFEST_FILENAME, SQLITE_FILENAME
-from mempalace_migrator.extraction.chroma_06_reader import EXPECTED_COLLECTION_NAME
+from mempalace_migrator.detection.format_detector import (MANIFEST_FILENAME,
+                                                          SQLITE_FILENAME)
+from mempalace_migrator.extraction.chroma_06_reader import \
+    EXPECTED_COLLECTION_NAME
 
 # ---------------------------------------------------------------------------
 # Exit codes (re-exported for clarity in adversarial tests)
@@ -93,6 +95,7 @@ MANIFEST_06_VALID = {
 
 
 def write_manifest(root: Path, data: dict | None = None) -> None:
+    root.mkdir(parents=True, exist_ok=True)
     (root / MANIFEST_FILENAME).write_text(
         json.dumps(MANIFEST_06_VALID if data is None else data),
         encoding="utf-8",
@@ -157,6 +160,7 @@ def build_minimal_valid_chroma_06(root: Path, *, n_drawers: int = 2) -> Path:
     baseline itself is part of the corpus to confirm the test harness is
     not over-eager.
     """
+    root.mkdir(parents=True, exist_ok=True)
     write_manifest(root)
     db_path = root / SQLITE_FILENAME
     conn = sqlite3.connect(str(db_path))
@@ -210,6 +214,7 @@ def build_control_chars_in_id(tmp_path: Path) -> Path:
 
 
 def build_duplicate_embedding_ids(tmp_path: Path) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     write_manifest(tmp_path)
     db_path = tmp_path / SQLITE_FILENAME
     conn = sqlite3.connect(str(db_path))
@@ -557,14 +562,112 @@ def build_all_rows_unparseable(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# M12 write-path builders (15.1, 15.2, 15.3, 15.9, 15.10, 15.11)
+# All builders return the source path.  Where a *target* is required the test
+# sets it up itself (cannot be embedded in a source builder).
+# ---------------------------------------------------------------------------
+
+
+def build_all_blank_ids(tmp_path: Path) -> Path:
+    """Every drawer has a blank / whitespace-only embedding_id.
+
+    Transformation should drop each row with TRANSFORM_DRAWER_DROPPED.
+    The resulting TransformedBundle.drawers is empty, so migrate returns
+    EXIT_RECONSTRUCT_FAILED (step_reconstruct detects the empty bundle).
+    """
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    write_manifest(tmp_path)
+    db_path = tmp_path / SQLITE_FILENAME
+    conn = sqlite3.connect(str(db_path))
+    try:
+        _create_06_schema(conn)
+        _insert_collection(conn)
+        for pk in range(1, 4):
+            _insert_drawer(conn, pk=pk, embedding_id="   ", document=f"doc-{pk}")
+        conn.commit()
+    finally:
+        conn.close()
+    return tmp_path
+
+
+def build_all_nonstring_documents(tmp_path: Path) -> Path:
+    """Every drawer has a NULL document (mapping to ORPHAN_EMBEDDING on extraction).
+
+    The extraction emits ORPHAN_EMBEDDING for each row; no drawer passes
+    into the TransformedBundle, so migrate returns EXIT_RECONSTRUCT_FAILED.
+    """
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    write_manifest(tmp_path)
+    db_path = tmp_path / SQLITE_FILENAME
+    conn = sqlite3.connect(str(db_path))
+    try:
+        _create_06_schema(conn)
+        _insert_collection(conn)
+        for pk in range(1, 4):
+            _insert_drawer(conn, pk=pk, embedding_id=f"id-{pk}", document=None)
+        conn.commit()
+    finally:
+        conn.close()
+    return tmp_path
+
+
+def build_large_valid_source(tmp_path: Path, *, n_rows: int) -> Path:
+    """Build a valid source with *n_rows* drawers for batch-size stress testing."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    write_manifest(tmp_path)
+    db_path = tmp_path / SQLITE_FILENAME
+    conn = sqlite3.connect(str(db_path))
+    try:
+        _create_06_schema(conn)
+        _insert_collection(conn)
+        for pk in range(1, n_rows + 1):
+            _insert_drawer(conn, pk=pk, embedding_id=f"row-{pk}", document=f"document content {pk}")
+        conn.commit()
+    finally:
+        conn.close()
+    return tmp_path
+
+
+def build_duplicate_ids_for_writer(tmp_path: Path) -> Path:
+    """Two rows share the same embedding_id — reuses the existing builder."""
+    return build_duplicate_embedding_ids(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# M12 run_migrate_cli helper
+# ---------------------------------------------------------------------------
+
+
+def run_migrate_cli(source: Path, target: Path, *, json_output: bool = True) -> "CliResult":
+    """Run ``migrate <source> --target <target>`` as a real subprocess.
+
+    Mirrors run_cli but handles the mandatory ``--target`` flag required by
+    the migrate subcommand.
+    """
+    args: list[str] = []
+    if json_output:
+        args.append("--json-output")
+    args.extend(["migrate", str(source), "--target", str(target)])
+    return run_cli(args)
+
+
+# ---------------------------------------------------------------------------
+# CorpusEntry (unchanged shape; pipeline field now accepts "migrate" too)
+# ---------------------------------------------------------------------------
+
+
 @dataclass(frozen=True)
 class CorpusEntry:
     cid: str
     builder: Callable[[Path], Path]
-    pipeline: str  # "analyze" | "inspect"
+    pipeline: str  # "analyze" | "inspect" | "migrate"
     allowed_exit_codes: frozenset[int]
-    category: str  # "10.1" | "10.2" | "10.3" | "10.4" | "10.5" | "baseline"
+    category: str  # "10.1" | "10.2" | "10.3" | "10.4" | "10.5" | "baseline" | "15.x"
     extra_tags: tuple[str, ...] = field(default_factory=tuple)
+    # For migrate entries only: extra CLI args beyond the source path.
+    # run_cli does not forward these; use run_migrate_cli in migrate-specific tests.
+    extra_cli_args: tuple[str, ...] = field(default_factory=tuple)
 
 
 # Allowed-exit-code rationale per entry. Anything else from the CLI is a
@@ -684,6 +787,42 @@ CORPUS: tuple[CorpusEntry, ...] = (
         frozenset({EXIT_DETECTION_FAILED, EXIT_OK}),
         "10.5",
     ),
+    # 15.x M12 write-path entries
+    # 15.3 pathological transformation inputs (migrate)
+    CorpusEntry(
+        "migrate_all_blank_ids",
+        build_all_blank_ids,
+        "migrate",
+        frozenset({EXIT_RECONSTRUCT_FAILED}),
+        "15.3",
+        extra_tags=("write_path",),
+    ),
+    CorpusEntry(
+        "migrate_all_nonstring_documents",
+        build_all_nonstring_documents,
+        "migrate",
+        frozenset({EXIT_RECONSTRUCT_FAILED}),
+        "15.3",
+        extra_tags=("write_path",),
+    ),
+    # 15.4 / 15.5 migrate-success baseline (minimal valid source)
+    CorpusEntry(
+        "migrate_baseline_valid",
+        build_minimal_valid_chroma_06,
+        "migrate",
+        frozenset({EXIT_OK}),
+        "baseline",
+        extra_tags=("write_path",),
+    ),
+    # 15.10 duplicate-ids source reaching the writer
+    CorpusEntry(
+        "migrate_duplicate_ids",
+        build_duplicate_ids_for_writer,
+        "migrate",
+        frozenset({EXIT_OK, EXIT_RECONSTRUCT_FAILED}),
+        "15.10",
+        extra_tags=("write_path",),
+    ),
 )
 
 
@@ -725,6 +864,9 @@ def adversarial_palace(request, tmp_path: Path) -> tuple[CorpusEntry, Path]:
     """
     entry: CorpusEntry = request.param if hasattr(request, "param") else None
     if entry is None:
+        raise RuntimeError("adversarial_palace must be parametrized with a CorpusEntry")
+    palace = entry.builder(tmp_path)
+    return entry, palace
         raise RuntimeError("adversarial_palace must be parametrized with a CorpusEntry")
     palace = entry.builder(tmp_path)
     return entry, palace
