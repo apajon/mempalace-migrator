@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-22-m12-pass",
+    "last_updated": "2026-04-22-m13-design",
     "phases": [
         {
             "id": 0,
@@ -891,6 +891,9 @@
                 "No broadening of supported formats",
                 "No weakening of existing honesty contracts"
             ],
+            "design_doc": "tests/M13_E2E_USABILITY_DESIGN.md",
+            "exit_gate_checklist": "tests/M13_E2E_USABILITY_DESIGN.md#9-exit-gate-checklist--what-m13-done-means",
+            "implementation_status": "design only — tests/M13_E2E_USABILITY_DESIGN.md committed; no test code, no production code. Single deliverable planned: tests/test_migrate_e2e.py (7 tests for 16.1–16.7). No new AnomalyType/Severity/CheckFamily/exit code/CLI flag introduced. Reuses M12 migrate fixture helpers, M8 extract_report_signature, M7 check_no_forbidden_vocabulary, M11 parity check ids.",
             "tasks": [
                 {
                     "id": "16.1",
@@ -948,8 +951,8 @@
         "phase_ids": [
             16
         ],
-        "label": "M13 End-to-End Migration Usability Gate — implementation pending",
-        "reason": "M12 Write-Path Adversarial + Hardening complete (840 tests green). All 11 sub-tasks done: 6 new adversarial test files (target safety, rollback, pathological transform, stress, duplicates, read-back), migrate-success baseline entry, stability invariants extended, logging discipline coverage guard added. One production fix: TARGET_MKDIR_FAILED AnomalyType (mkdir PermissionError was misclassified as TARGET_PATH_NOT_DIRECTORY). M12 exit gate satisfied. Next: M13 phase 16 end-to-end usability gate.",
+        "label": "M13 End-to-End Migration Usability Gate — design committed, implementation pending",
+        "reason": "M12 Write-Path Adversarial + Hardening complete (840 tests green). M13 design doc tests/M13_E2E_USABILITY_DESIGN.md committed. All seven tasks (16.1–16.7) remain todo: single test file tests/test_migrate_e2e.py to be added, no new production code expected unless a happy-path defect surfaces. current_position.milestone must remain M12_done until 16.1–16.6 are all green (enforced by 16.7).",
         "next_milestone": "M13 End-to-End Migration Usability Gate"
     }
 }
