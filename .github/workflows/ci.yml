@@ -37,6 +37,7 @@ jobs:
 
             - name: Migration smoke
               run: |
+                  command -v mempalace-migrator
                   pytest -q \
                     tests/test_migrate_e2e.py::test_migrate_happy_path_exits_zero_and_builds_target \
                     tests/test_migrate_e2e.py::test_parity_checks_are_executed_not_skipped \

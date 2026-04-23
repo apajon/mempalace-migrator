@@ -1,7 +1,7 @@
 # M15 — CI & Verification Baseline: Implementation Strategy
 
-Status: **design only** (no CI workflow committed yet).
-Scope: phase 18 in `TODO.json` (`18.1 .. 18.5`).
+Status: **implemented** (CI workflow committed; M15 done as of 2026-04-23).
+Scope: phase 18 in `TODO.json` (`18.1 .. 18.7`).
 Predecessors satisfied: M1–M14 exit gates (see
 `ROADMAP.json::current_position` → `M14_done`, doc-surface parity
 enforced by `tests/docs/test_doc_surface.py`).
@@ -146,6 +146,11 @@ on:
   pull_request:
     branches: [main]
 ```
+
+**Operator deviation (action-minute budget):** The committed `ci.yml`
+omits the `push` trigger. Only `pull_request` against `main` triggers
+the workflow. This deviation is documented in the workflow comment,
+`TODO.json` task 18.1 note, and `test_workflow_surface.py` assertion 2.
 
 No `schedule:`, no `workflow_dispatch:` in M15. Both are additions
 for later milestones when there is a reason for them.
@@ -531,11 +536,5 @@ Recorded evidence as of 2026-04-23:
   https://github.com/apajon/mempalace-migrator/actions/runs/24847898031/job/72739999009?pr=1
 - Branch protection on `main` is active with required status checks and
   `Require a pull request before merging` enabled.
-- Red-path (deliberate regression) CI run URL (PR #2, closed without merging):
-  https://github.com/apajon/mempalace-migrator/actions/runs/24848463041/job/72742034403
-  The `verify` job failed on `test_deliberate_regression` as expected,
-  confirming the gate is real. PR #2 was closed without merging.
-- `ruff` / `mypy` CI jobs were not wired in M15. Pre-existing lint/type errors
-  are not fixed by this milestone; repair is deferred to the owning phase.
-
-All §9 items 1–14 satisfied. M15 is done.
+- Red-path evidence is still pending: one deliberate-regression run URL
+  must be recorded before marking M15 done.

@@ -57,7 +57,15 @@ _FORBIDDEN_RE = re.compile(
 
 
 def _load_workflow() -> dict[str, Any]:
-    """Load and return the parsed ci.yml as a dict."""
+    """Load and return the parsed ci.yml as a dict.
+
+    Asserts existence here so every caller gets a clean AssertionError
+    instead of a FileNotFoundError when ci.yml is missing or renamed.
+    """
+    assert _WORKFLOW.exists(), (
+        f"CI workflow not found at {_WORKFLOW.relative_to(_REPO_ROOT)}. "
+        "Task 18.1 requires this file to be committed."
+    )
     return yaml.safe_load(_WORKFLOW.read_text(encoding="utf-8"))  # type: ignore[return-value]
 
 
@@ -95,8 +103,9 @@ def test_workflow_triggers_on_pull_request() -> None:
     budget). This is a documented deviation from M15_CI_BASELINE_DESIGN.md §5.1.
     """
     wf = _load_workflow()
-    # PyYAML parses the YAML key 'on' as Python bool True.
-    triggers: dict[str, Any] = wf.get(True) or {}  # type: ignore[call-overload]
+    # Handle both the standard string key "on" and legacy YAML-1.1 bool
+    # coercion to True (PyYAML default for unquoted `on:` keys).
+    triggers: dict[str, Any] = wf.get("on") or wf.get(True) or {}  # type: ignore[call-overload]
     assert "pull_request" in triggers, (
         f"ci.yml does not have a pull_request trigger. " f"Triggers found: {sorted(str(k) for k in triggers)}"
     )
