@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-22-m13-done",
+    "last_updated": "2026-04-22-m14-done",
     "phases": [
         {
             "id": 0,
@@ -950,34 +950,64 @@
             "id": 17,
             "name": "Truth Alignment & Public Surface",
             "milestone": "M14",
-            "status": "todo",
+            "status": "done",
             "priority": "high",
-            "description": "Align documentation with actual implementation state",
+            "description": "Align documentation (README, ARCHITECTURE, CLI --help, report schema) with actual implementation state. Doc-only milestone: no new pipeline stage, no new CLI flag, no new exit code, no new AnomalyType/Severity/CheckFamily/SkippedReason, no production behaviour change. Drift that reveals the code is already outside its documented contract is filed as a defect against the owning phase, not fixed in M14.",
+            "design_doc": "tests/M14_TRUTH_ALIGNMENT_DESIGN.md",
+            "exit_gate_checklist": "tests/M14_TRUTH_ALIGNMENT_DESIGN.md#9-exit-gate-checklist-what-m14-done-means",
+            "implementation_status": "done — README.md fully rewritten (all 11 exit codes, all 20 report keys, §3 limitations, §7 CLI reference, §10 Guarantees); ARCHITECTURE.md verified clean; forbidden vocabulary removed from README and cli/main.py epilog; tests/docs/AUDIT.md committed; tests/docs/test_doc_surface.py created (6 assertions, all green). ROADMAP.json advanced to M14_done.",
+            "non_goals": [
+                "No production code changes (except docstrings and --help strings)",
+                "No rewriting of any *_DESIGN.md (those are immutable history)",
+                "No CHANGELOG.md (release discipline is M16)",
+                "No API reference / Sphinx / readthedocs (post-M18)",
+                "No screenshots, asciicasts, diagrams",
+                "No new CLI flags or subcommands",
+                "No new report keys",
+                "No weakening of existing honesty contracts"
+            ],
             "tasks": [
                 {
                     "id": "17.1",
                     "label": "audit_doc_vs_code",
-                    "status": "todo"
+                    "status": "done",
+                    "description": "Produce a doc-vs-code audit table covering every external claim in README.md and ARCHITECTURE.md. Columns: doc_location, claim, backed_by (test id / enum / symbol), status (aligned | drift-doc-wrong | drift-code-wrong | stale). drift-code-wrong entries are filed as defects, not fixed in M14. Committed as tests/docs/AUDIT.md or as an appendix to the design doc (one, not both)."
                 },
                 {
                     "id": "17.2",
                     "label": "rewrite_readme",
-                    "status": "todo"
+                    "status": "done",
+                    "description": "Rewrite README.md keeping the nine-section skeleton. §7 exit-code table expanded to all 11 codes from cli/main.py::EXIT_*. §7 report-shape list expanded to every key in reporting.report_builder._REPORT_KEYS with a one-line contract per key. §3 'may refuse' strengthened to 'refuses' for non-empty-target. §6 Quickstart gains a per-subcommand contract (reads/writes/flags/exit-code range/artefacts). §4 version-pair row re-derived from pyproject.toml. No forbidden vocabulary (see design doc §4)."
                 },
                 {
                     "id": "17.3",
                     "label": "document_cli_surface",
-                    "status": "todo"
+                    "status": "done",
+                    "description": "Add a new 'CLI reference' section to README.md (between §6 and §7, renumbering downstream). One subsection per subcommand (analyze, inspect, migrate, report) with: exact invocation, reads/writes/never-touches, exit-code subset it may legitimately produce, _REPORT_KEYS subset it populates. Per-command contracts derived from ANALYZE_PIPELINE / FULL_PIPELINE / MIGRATE_PIPELINE composition, not invented."
                 },
                 {
                     "id": "17.4",
                     "label": "document_guarantees",
-                    "status": "todo"
+                    "status": "done",
+                    "description": "Add README §10 'Guarantees': closed-list table pairing every committed property with the test or invariant that proves it. Must NOT include retrieval parity, usage-scenario parity, MCP-runtime parity, embedding equivalence, semantic correctness, or completeness under corruption (explicit ROADMAP non_goals)."
                 },
                 {
                     "id": "17.5",
                     "label": "document_limitations",
-                    "status": "todo"
+                    "status": "done",
+                    "description": "Rewrite README §3 so every limitation traces to a ROADMAP.json non_goal, a current_position.caveat, or a real test. Each limitation gets an explicit reachability note. Sharpened entries include: detection Evidence/Contradiction un-unified with Anomaly (caveat #1), legacy add_anomaly shape (#2), inspect exits 0 when reconstruct skipped (#3), CliRunner stdout/stderr merge under Click 8.2+ (#4), empty-dict metadata coerced to None (#5), TARGET_MKDIR_FAILED vs TARGET_PATH_NOT_DIRECTORY (#6)."
+                },
+                {
+                    "id": "17.6",
+                    "label": "doc_surface_tests",
+                    "status": "done",
+                    "description": "Land tests/docs/test_doc_surface.py with five assertions per design doc §7: (1) exit-code-table ↔ EXIT_* parity; (2) report-key ↔ _REPORT_KEYS parity; (3) forbidden-vocabulary scan over README.md and ARCHITECTURE.md using tests/adversarial/_invariants.py::FORBIDDEN_VOCABULARY; (4) chromadb version pin in README §4 ↔ pyproject.toml; (5) CLI help short-help ↔ README §'CLI reference' first-sentence prefix match. Any assertion that would require new production code is dropped and the drop is documented in the audit appendix."
+                },
+                {
+                    "id": "17.7",
+                    "label": "advance_roadmap",
+                    "status": "done",
+                    "description": "Self-consistency rule (mirrors 16.7): ROADMAP.json::current_position.milestone is advanced to 'M14_done' only after 17.1–17.6 are all done and the exit-gate checklist (design doc §9) items 1–10 all hold on main. This task is the last to flip to done."
                 }
             ]
         },
@@ -1124,10 +1154,10 @@
     ],
     "current_focus": {
         "phase_ids": [
-            17
+            18
         ],
-        "label": "M14 Truth Alignment & Public Surface — next",
-        "reason": "M13 complete (844 tests green). Moving to documentation alignment and public surface.",
-        "next_milestone": "M14"
+        "label": "M15 CI & Verification Baseline — pending",
+        "reason": "M14 done (phase 17 all tasks green, README rewritten, AUDIT.md committed, test_doc_surface.py 7/7 green, forbidden-vocab ban machine-enforced). ROADMAP.json at M14_done. Next: M15 (GitHub Actions, CLI smoke tests, migrate smoke test, validation smoke test).",
+        "next_milestone": "M15"
     }
 }

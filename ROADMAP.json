@@ -411,10 +411,10 @@
         "M19"
     ],
     "current_position": {
-        "milestone": "M13_done",
-        "next_target": "M14",
-        "next_target_reason": "M13 complete. Next: Truth Alignment & Public Surface (documentation, README, CLI surface, guarantees, limitations).",
-        "description": "M13 exit gate satisfied. tests/test_migrate_e2e.py added (7 subprocess-level tests, 16.1–16.6 all green). Pre-existing syntax bugs fixed in adversarial/conftest.py and hardening/test_stability_invariants.py (duplicate code blocks). 844 tests green (3 pre-existing timing-flaky performance baseline failures unrelated to M13). 16.7 self-consistency rule confirmed: ROADMAP advanced only after 16.1–16.6 all done.",
+        "milestone": "M14_done",
+        "next_target": "M15",
+        "next_target_reason": "M14 complete. Next: CI & Verification Baseline (GitHub Actions, CLI smoke tests, migrate smoke test, validation smoke test).",
+        "description": "M14 exit gate satisfied. README.md completely rewritten: all 11 EXIT_* codes documented, all 20 REPORT_TOP_LEVEL_KEYS documented, §3 limitations rewritten with all 6 caveats, §7 CLI reference section added, §10 Guarantees section added. Forbidden vocabulary (correct/verified/guaranteed/valid) removed from README.md and cli/main.py epilog. ARCHITECTURE.md verified clean. tests/docs/AUDIT.md created (full drift table, all drift-doc-wrong entries resolved). tests/docs/test_doc_surface.py created with 6 passing assertions (exit-code parity, report-key parity, forbidden-vocabulary scan \u00d72, version-pin consistency, CLI help consistency). 17.7 self-consistency rule confirmed: ROADMAP advanced only after 17.1–17.6 all done.",
         "risk_level": "low",
         "reason": "M13 exit gate (M13_E2E_USABILITY_DESIGN.md §9) conditions all met: (1) migrate exits 0 on minimal valid chroma_0_6 fixture, manifest written, all 5 stages executed, imported_count==3; (2) all 4 required parity checks executed, none in checks_not_performed; (3) confidence_band HIGH, no forbidden vocabulary, no hidden CRITICAL anomaly; (4) two fresh-target runs produce identical extract_report_signature; (5) source bytes and mtime_ns unchanged after full command; (6) reconstructed target reopens via chromadb.PersistentClient in fresh subprocess, count() matches imported_count; (7) 16.7 self-consistency rule satisfied — ROADMAP advanced only now that 16.1–16.6 are all done.",
         "completed_milestones": [
@@ -430,7 +430,8 @@
             "M10",
             "M11",
             "M12",
-            "M13"
+            "M13",
+            "M14"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
