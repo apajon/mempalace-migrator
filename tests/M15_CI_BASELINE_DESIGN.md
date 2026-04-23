@@ -524,3 +524,12 @@ green the badge looks.
   errors and deferred them.
 
 These are **documented**, not **fixed**, by M15.)
+
+Recorded evidence as of 2026-04-23:
+
+- Successful CI run URL (PR #1):
+  https://github.com/apajon/mempalace-migrator/actions/runs/24847898031/job/72739999009?pr=1
+- Branch protection on `main` is active with required status checks and
+  `Require a pull request before merging` enabled.
+- Red-path evidence is still pending: one deliberate-regression run URL
+  must be recorded before marking M15 done.

@@ -1066,8 +1066,8 @@
                 {
                     "id": "18.5",
                     "label": "fail_fast_policy",
-                    "status": "partial",
-                    "note": "(a) DONE: ci.yml uses no continue-on-error; no '|| true'; no if: always() masking. (b) PENDING: GitHub branch-protection on main must be set in the GitHub UI (requires admin access; cannot be committed). (c) DONE: protection rule documented in README §11 'CI'. M15 is NOT done until (b) is confirmed live per design §5.5."
+                    "status": "done",
+                    "note": "(a) DONE: ci.yml uses no continue-on-error; no '|| true'; no if: always() masking. (b) DONE: branch protection on main is active in GitHub (required status check + require pull request before merging). (c) DONE: protection rule documented in README §11 'CI'."
                 },
                 {
                     "id": "18.6",
@@ -1078,8 +1078,8 @@
                 {
                     "id": "18.7",
                     "label": "self_consistency_rule",
-                    "status": "todo",
-                    "note": "Do NOT advance ROADMAP.json::current_position.milestone to M15_done until 18.1–18.6 are all done AND at least one successful CI run on main is recorded (§9 item 9) AND at least one deliberate-regression red-path CI run has been observed and linked (§9 item 10) AND branch-protection on main is confirmed live (§9 item 7). Mirrors the M9–M14 self-consistency convention."
+                    "status": "partial",
+                    "note": "18.1-18.6 are done, branch protection on main is confirmed live, and one successful CI run is recorded: https://github.com/apajon/mempalace-migrator/actions/runs/24847898031/job/72739999009?pr=1. Remaining requirement before M15_done: one deliberate-regression red-path run URL recorded (§9 item 10)."
                 }
             ]
         },
@@ -1193,8 +1193,8 @@
         "phase_ids": [
             18
         ],
-        "label": "M15 CI & Verification Baseline — code landed, awaiting CI runs and branch-protection",
-        "reason": "Tasks 18.1–18.4 and 18.6 done. 18.5 partial (no continue-on-error + README §11 doc done; branch-protection GitHub UI step pending). 18.7 blocked until: (a) first successful CI run on main is recorded, (b) deliberate red-path regression run observed and linked, (c) branch-protection confirmed live. push trigger intentionally omitted from ci.yml (action-minute budget constraint). ROADMAP stays at M14_done until 18.7 clears.",
+        "label": "M15 CI & Verification Baseline — waiting for red-path evidence",
+        "reason": "Tasks 18.1–18.6 are done. Branch protection is live and a successful CI run is recorded (actions/runs/24847898031). The remaining M15 gate is 18.7 red-path evidence: record one deliberate regression run that fails under the same workflow, then advance ROADMAP to M15_done.",
         "next_milestone": "M15"
     }
 }
