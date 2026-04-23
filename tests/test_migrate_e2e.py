@@ -24,16 +24,12 @@ from typing import Any
 import pytest
 
 from mempalace_migrator.cli.main import EXIT_OK
-from mempalace_migrator.detection.format_detector import (MANIFEST_FILENAME,
-                                                          SQLITE_FILENAME)
-from mempalace_migrator.extraction.chroma_06_reader import \
-    EXPECTED_COLLECTION_NAME
-from mempalace_migrator.reconstruction._manifest import \
-    TARGET_MANIFEST_FILENAME
+from mempalace_migrator.detection.format_detector import MANIFEST_FILENAME, SQLITE_FILENAME
+from mempalace_migrator.extraction.chroma_06_reader import EXPECTED_COLLECTION_NAME
+from mempalace_migrator.reconstruction._manifest import TARGET_MANIFEST_FILENAME
 from tests.adversarial._invariants import check_no_forbidden_vocabulary
 from tests.hardening.conftest import extract_report_signature
-from tests.test_cli_migrate import (_make_valid_db, _sha256,  # noqa: F401
-                                    _write_manifest, make_valid_palace)
+from tests.test_cli_migrate import _make_valid_db, _sha256, _write_manifest, make_valid_palace  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -52,8 +48,8 @@ _REQUIRED_PARITY_CHECK_IDS: frozenset[str] = frozenset(
     }
 )
 
-_TODO_PATH = Path(__file__).parent / "TODO.json"
-_ROADMAP_PATH = Path(__file__).parent / "ROADMAP.json"
+_TODO_PATH = Path(__file__).parent.parent / "TODO.json"
+_ROADMAP_PATH = Path(__file__).parent.parent / "ROADMAP.json"
 
 
 # ---------------------------------------------------------------------------
@@ -119,12 +115,10 @@ def test_migrate_happy_path_exits_zero_and_builds_target(tmp_path: Path) -> None
 
     rc, report, stderr = _run_migrate(source, target)
 
-    assert rc == EXIT_OK, (
-        f"expected exit 0; got {rc}.\nstderr={stderr!r}\nstdout={json.dumps(report, indent=2)}"
-    )
-    assert (target / TARGET_MANIFEST_FILENAME).is_file(), (
-        f"target manifest not found at {target / TARGET_MANIFEST_FILENAME}"
-    )
+    assert rc == EXIT_OK, f"expected exit 0; got {rc}.\nstderr={stderr!r}\nstdout={json.dumps(report, indent=2)}"
+    assert (
+        target / TARGET_MANIFEST_FILENAME
+    ).is_file(), f"target manifest not found at {target / TARGET_MANIFEST_FILENAME}"
 
     stages = report.get("stages") or {}
     for stage_name in ("detect", "extract", "transform", "reconstruct", "validate"):
@@ -209,12 +203,10 @@ def test_confidence_and_no_forbidden_vocabulary(tmp_path: Path) -> None:
             critical_in_stage = [
                 a
                 for a in anomalies
-                if a.get("severity") == "critical"
-                and (a.get("location") or {}).get("stage") == stage_name
+                if a.get("severity") == "critical" and (a.get("location") or {}).get("stage") == stage_name
             ]
             assert not critical_in_stage, (
-                f"stage {stage_name!r} is 'executed' but carries CRITICAL anomalies: "
-                f"{critical_in_stage}"
+                f"stage {stage_name!r} is 'executed' but carries CRITICAL anomalies: " f"{critical_in_stage}"
             )
 
 
@@ -247,9 +239,7 @@ def test_two_fresh_target_runs_are_repeatable(tmp_path: Path) -> None:
 
     statuses_a = _parity_statuses(report_a)
     statuses_b = _parity_statuses(report_b)
-    assert statuses_a == statuses_b, (
-        f"parity statuses differ between runs.\nrun_a: {statuses_a}\nrun_b: {statuses_b}"
-    )
+    assert statuses_a == statuses_b, f"parity statuses differ between runs.\nrun_a: {statuses_a}\nrun_b: {statuses_b}"
 
     # Stable report signatures must be byte-equal (modulo volatile fields redacted
     # by extract_report_signature: run_id, started_at, completed_at,
@@ -281,18 +271,10 @@ def test_source_bytes_and_mtime_invariant_across_full_command(tmp_path: Path) ->
 
     assert rc == EXIT_OK, f"migrate failed; stderr={stderr!r}"
 
-    assert after["manifest_sha256"] == before["manifest_sha256"], (
-        "source manifest sha256 changed after migrate"
-    )
-    assert after["manifest_mtime_ns"] == before["manifest_mtime_ns"], (
-        "source manifest mtime_ns changed after migrate"
-    )
-    assert after["sqlite_sha256"] == before["sqlite_sha256"], (
-        "source sqlite sha256 changed after migrate"
-    )
-    assert after["sqlite_mtime_ns"] == before["sqlite_mtime_ns"], (
-        "source sqlite mtime_ns changed after migrate"
-    )
+    assert after["manifest_sha256"] == before["manifest_sha256"], "source manifest sha256 changed after migrate"
+    assert after["manifest_mtime_ns"] == before["manifest_mtime_ns"], "source manifest mtime_ns changed after migrate"
+    assert after["sqlite_sha256"] == before["sqlite_sha256"], "source sqlite sha256 changed after migrate"
+    assert after["sqlite_mtime_ns"] == before["sqlite_mtime_ns"], "source sqlite mtime_ns changed after migrate"
     assert after["filenames"] == before["filenames"], (
         f"source directory filenames changed after migrate.\n"
         f"before: {sorted(before['filenames'])}\n"
@@ -336,16 +318,11 @@ def test_reconstructed_target_reopens_in_fresh_process(tmp_path: Path) -> None:
         text=True,
         timeout=60,
     )
-    assert reopen.returncode == 0, (
-        f"fresh-process target reopen exited {reopen.returncode}.\nstderr={reopen.stderr!r}"
-    )
-    assert not reopen.stderr.strip(), (
-        f"fresh-process target reopen printed to stderr: {reopen.stderr!r}"
-    )
+    assert reopen.returncode == 0, f"fresh-process target reopen exited {reopen.returncode}.\nstderr={reopen.stderr!r}"
+    assert not reopen.stderr.strip(), f"fresh-process target reopen printed to stderr: {reopen.stderr!r}"
     actual_count = int(reopen.stdout.strip())
     assert actual_count == expected_count, (
-        f"reopened collection.count()={actual_count} != "
-        f"report.reconstruction.imported_count={expected_count}"
+        f"reopened collection.count()={actual_count} != " f"report.reconstruction.imported_count={expected_count}"
     )
 
 
@@ -363,16 +340,10 @@ def test_todo_promotion_rule_is_self_consistent() -> None:
     assert phase16 is not None, "phase 16 not found in tests/TODO.json"
 
     gated_task_ids = {"16.1", "16.2", "16.3", "16.4", "16.5", "16.6"}
-    task_statuses = {
-        t["id"]: t["status"]
-        for t in (phase16.get("tasks") or [])
-        if t.get("id") in gated_task_ids
-    }
+    task_statuses = {t["id"]: t["status"] for t in (phase16.get("tasks") or []) if t.get("id") in gated_task_ids}
     # All six gated tasks must be present in TODO.json.
     missing_tasks = gated_task_ids - task_statuses.keys()
-    assert not missing_tasks, (
-        f"tasks {sorted(missing_tasks)} not found in phase 16 of tests/TODO.json"
-    )
+    assert not missing_tasks, f"tasks {sorted(missing_tasks)} not found in phase 16 of TODO.json"
 
     all_done = all(s == "done" for s in task_statuses.values())
     current_pos = roadmap.get("current_position") or {}
