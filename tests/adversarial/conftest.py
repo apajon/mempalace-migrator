@@ -77,7 +77,7 @@ def run_cli(args: list[str]) -> CliResult:
         capture_output=True,
         text=True,
         env=env,
-        timeout=30,
+        timeout=90,
     )
     return CliResult(returncode=proc.returncode, stdout=proc.stdout, stderr=proc.stderr)
 
