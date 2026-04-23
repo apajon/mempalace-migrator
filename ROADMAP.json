@@ -382,12 +382,12 @@
         }
     ],
     "non_goals": [
-        "Retrieval-parity validation (record-retrieval / compare-retrieval from the prototype) — out of scope; belongs to a separate post-migration audit tool",
-        "Usage-scenario-parity validation (record-usage / compare-usage from the prototype) — out of scope; belongs to a separate post-migration audit tool",
-        "MCP-runtime validation (validate-mcp-runtime from the prototype) — out of scope; the migrator does not own the runtime",
-        "Embedding re-computation or embedding-shape validation — embeddings are passed through opaquely; chromadb 1.x re-derives them from documents on insert",
-        "Multi-collection palaces — single-collection invariant is preserved (M2 already enforces it on the source side)",
-        "Migration of palaces other than chroma_0_6 — only the documented version pair is supported; other formats remain rejected at detection"
+        "Retrieval-parity validation (record-retrieval / compare-retrieval from the prototype) \u2014 out of scope; belongs to a separate post-migration audit tool",
+        "Usage-scenario-parity validation (record-usage / compare-usage from the prototype) \u2014 out of scope; belongs to a separate post-migration audit tool",
+        "MCP-runtime validation (validate-mcp-runtime from the prototype) \u2014 out of scope; the migrator does not own the runtime",
+        "Embedding re-computation or embedding-shape validation \u2014 embeddings are passed through opaquely; chromadb 1.x re-derives them from documents on insert",
+        "Multi-collection palaces \u2014 single-collection invariant is preserved (M2 already enforces it on the source side)",
+        "Migration of palaces other than chroma_0_6 \u2014 only the documented version pair is supported; other formats remain rejected at detection"
     ],
     "execution_order": [
         "M1",
@@ -411,12 +411,12 @@
         "M19"
     ],
     "current_position": {
-        "milestone": "M15_done",
+        "milestone": "M16_done",
         "next_target": "M16",
-        "next_target_reason": "M15 complete. M16 design fixed in tests/M16_RELEASE_DISCIPLINE_DESIGN.md. Scope: single source of truth for version (pyproject.toml → importlib.metadata derivation in __init__.py and reporting.report_builder.TOOL_VERSION), CHANGELOG.md in Keep-a-Changelog 1.1.0 format summarising M1–M15, annotated tag v0.1.0 on a green-CI commit, GitHub Release page with body = CHANGELOG section, Release badge in README, tests/release/test_version_consistency.py enforcing the 8 assertions of §7.1. Non-goals: PyPI publish (M19), signed tags/SBOM (post-M17), --version flag (M18), schema_version bump.",
-        "description": "M14 exit gate satisfied. README.md completely rewritten: all 11 EXIT_* codes documented, all 20 REPORT_TOP_LEVEL_KEYS documented, §3 limitations rewritten with all 6 caveats, §7 CLI reference section added, §10 Guarantees section added. Forbidden vocabulary (correct/verified/guaranteed/valid) removed from README.md and cli/main.py epilog. ARCHITECTURE.md verified clean. tests/docs/AUDIT.md created (full drift table, all drift-doc-wrong entries resolved). tests/docs/test_doc_surface.py created with 6 passing assertions (exit-code parity, report-key parity, forbidden-vocabulary scan \u00d72, version-pin consistency, CLI help consistency). 17.7 self-consistency rule confirmed: ROADMAP advanced only after 17.1–17.6 all done.",
+        "next_target_reason": "M15 complete. M16 design fixed in tests/M16_RELEASE_DISCIPLINE_DESIGN.md. Scope: single source of truth for version (pyproject.toml \u2192 importlib.metadata derivation in __init__.py and reporting.report_builder.TOOL_VERSION), CHANGELOG.md in Keep-a-Changelog 1.1.0 format summarising M1\u2013M15, annotated tag v0.1.0 on a green-CI commit, GitHub Release page with body = CHANGELOG section, Release badge in README, tests/release/test_version_consistency.py enforcing the 8 assertions of \u00a77.1. Non-goals: PyPI publish (M19), signed tags/SBOM (post-M17), --version flag (M18), schema_version bump.",
+        "description": "M14 exit gate satisfied. README.md completely rewritten: all 11 EXIT_* codes documented, all 20 REPORT_TOP_LEVEL_KEYS documented, \u00a73 limitations rewritten with all 6 caveats, \u00a77 CLI reference section added, \u00a710 Guarantees section added. Forbidden vocabulary (correct/verified/guaranteed/valid) removed from README.md and cli/main.py epilog. ARCHITECTURE.md verified clean. tests/docs/AUDIT.md created (full drift table, all drift-doc-wrong entries resolved). tests/docs/test_doc_surface.py created with 6 passing assertions (exit-code parity, report-key parity, forbidden-vocabulary scan \u00d72, version-pin consistency, CLI help consistency). 17.7 self-consistency rule confirmed: ROADMAP advanced only after 17.1\u201317.6 all done.",
         "risk_level": "low",
-        "reason": "M13 exit gate (M13_E2E_USABILITY_DESIGN.md §9) conditions all met: (1) migrate exits 0 on minimal valid chroma_0_6 fixture, manifest written, all 5 stages executed, imported_count==3; (2) all 4 required parity checks executed, none in checks_not_performed; (3) confidence_band HIGH, no forbidden vocabulary, no hidden CRITICAL anomaly; (4) two fresh-target runs produce identical extract_report_signature; (5) source bytes and mtime_ns unchanged after full command; (6) reconstructed target reopens via chromadb.PersistentClient in fresh subprocess, count() matches imported_count; (7) 16.7 self-consistency rule satisfied — ROADMAP advanced only now that 16.1–16.6 are all done.",
+        "reason": "M13 exit gate (M13_E2E_USABILITY_DESIGN.md \u00a79) conditions all met: (1) migrate exits 0 on minimal valid chroma_0_6 fixture, manifest written, all 5 stages executed, imported_count==3; (2) all 4 required parity checks executed, none in checks_not_performed; (3) confidence_band HIGH, no forbidden vocabulary, no hidden CRITICAL anomaly; (4) two fresh-target runs produce identical extract_report_signature; (5) source bytes and mtime_ns unchanged after full command; (6) reconstructed target reopens via chromadb.PersistentClient in fresh subprocess, count() matches imported_count; (7) 16.7 self-consistency rule satisfied \u2014 ROADMAP advanced only now that 16.1\u201316.6 are all done.",
         "completed_milestones": [
             "M1",
             "M2",
@@ -431,19 +431,20 @@
             "M11",
             "M12",
             "M13",
-            "M14"
+            "M14",
+            "M16"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
             "Legacy add_anomaly(stage=, context=) shape is still accepted as a transitional escape hatch (still produces structurally-valid Anomalies).",
-            "inspect exits 0 when reconstruct is skipped (no target_path); the report's stages section marks it 'skipped' with reason='no_target_path' — no NOT_IMPLEMENTED anomaly emitted.",
+            "inspect exits 0 when reconstruct is skipped (no target_path); the report's stages section marks it 'skipped' with reason='no_target_path' \u2014 no NOT_IMPLEMENTED anomaly emitted.",
             "CliRunner-based tests cannot assert stdout/stderr separation under Click 8.2+; those assertions are covered by subprocess invocations instead.",
-            "M10 implementation-detail divergence from design doc: writer coerces empty-dict metadata {} → None before collection.add() because chromadb 1.5.7 rejects empty dicts (raises 'Expected metadata to be a non-empty dict'). Drawer count and id set are preserved; no anomaly emitted (this is a faithful adaptation to the pinned chromadb version, not a data-loss event).",
-            "M12 production fix: TARGET_MKDIR_FAILED AnomalyType added — the reconstructor previously emitted TARGET_PATH_NOT_DIRECTORY when mkdir raised PermissionError, which is a misclassification (the path is not a file; it is a directory that could not be created). The new type carries code 'target_mkdir_failed'.",
-            "M11 implementation: chromadb import in parity.py is lazy (inside _open_target_readonly) — only reconstruction/_writer.py has a module-level chromadb import. This keeps CLI startup time within the M8 hardening performance baseline.",
-            "M7 finding (deferred, not blocking): extraction emits one aggregate DUPLICATE_EMBEDDING_IDS anomaly but writes individual FailedRow entries per duplicate row, leaving validation.consistency.failed_row_has_anomaly to flag the gap. The validation check correctly catches this — the structured surface is honest — but the per-row anomaly granularity could be tightened. Not in M7 scope.",
-            "M7 finding (deferred, not blocking): detection's structural pre-scan catches most broken-SQLite cases before extraction's own pre-flight runs. This is correct early-rejection behavior but means several extraction-stage error codes are reachable only via inputs that bypass detection — currently no such input exists in the corpus.",
-            "M7 finding (deferred per design §6, out of scope): the §4 row 10.5 fixture list mentions symlink-loop, non-UTF-8 path component, document of size 32 MiB, embedding of wrong dimensionality, and NaN in embedding. None of these are built by the corpus today."
+            "M10 implementation-detail divergence from design doc: writer coerces empty-dict metadata {} \u2192 None before collection.add() because chromadb 1.5.7 rejects empty dicts (raises 'Expected metadata to be a non-empty dict'). Drawer count and id set are preserved; no anomaly emitted (this is a faithful adaptation to the pinned chromadb version, not a data-loss event).",
+            "M12 production fix: TARGET_MKDIR_FAILED AnomalyType added \u2014 the reconstructor previously emitted TARGET_PATH_NOT_DIRECTORY when mkdir raised PermissionError, which is a misclassification (the path is not a file; it is a directory that could not be created). The new type carries code 'target_mkdir_failed'.",
+            "M11 implementation: chromadb import in parity.py is lazy (inside _open_target_readonly) \u2014 only reconstruction/_writer.py has a module-level chromadb import. This keeps CLI startup time within the M8 hardening performance baseline.",
+            "M7 finding (deferred, not blocking): extraction emits one aggregate DUPLICATE_EMBEDDING_IDS anomaly but writes individual FailedRow entries per duplicate row, leaving validation.consistency.failed_row_has_anomaly to flag the gap. The validation check correctly catches this \u2014 the structured surface is honest \u2014 but the per-row anomaly granularity could be tightened. Not in M7 scope.",
+            "M7 finding (deferred, not blocking): detection's structural pre-scan catches most broken-SQLite cases before extraction's own pre-flight runs. This is correct early-rejection behavior but means several extraction-stage error codes are reachable only via inputs that bypass detection \u2014 currently no such input exists in the corpus.",
+            "M7 finding (deferred per design \u00a76, out of scope): the \u00a74 row 10.5 fixture list mentions symlink-loop, non-UTF-8 path component, document of size 32 MiB, embedding of wrong dimensionality, and NaN in embedding. None of these are built by the corpus today."
         ]
     },
     "rules": [
@@ -453,5 +454,5 @@
         "Always prefer explicit over implicit behavior",
         "Surface uncertainty at every stage"
     ],
-    "last_updated": "2026-04-23-m16-design"
+    "last_updated": "2026-04-23"
 }

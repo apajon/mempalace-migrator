@@ -631,8 +631,7 @@ Evidence slots (to be filled at milestone close):
   _Pending — CI run triggered by push to main at `07800fd`. URL available
   at https://github.com/apajon/mempalace-migrator/actions once complete._
 - `v0.1.0` tag commit SHA: `07800fd7afa75bb701ea904bb48687c7ead93dba`
-- `v0.1.0` GitHub Release URL: _Pending — tag pushed; Release must be
-  created manually in the GitHub UI (Path A). See §5.4 Path A checklist._
+- `v0.1.0` GitHub Release URL: https://github.com/apajon/mempalace-migrator/releases/tag/v0.1.0
 - Release path chosen: **A (manual)**. Justification: `release.yml` (Path B)
   is optional per §3; no additional automation is needed for a single
   one-file release. Path A satisfies all exit-gate requirements.
