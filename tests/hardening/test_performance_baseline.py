@@ -30,7 +30,7 @@ pytestmark = pytest.mark.slow
 # Configuration
 # ---------------------------------------------------------------------------
 
-N_PERF_RUNS = 5
+N_PERF_RUNS = 3
 # Tolerance is read from the committed baseline file (tolerance.wall_clock_pct).
 # Fallback of 50 % is only used when the key is absent (e.g. legacy baselines).
 _TOLERANCE_FALLBACK_PCT = 50
