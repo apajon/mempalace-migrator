@@ -18,11 +18,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from mempalace_migrator.core.context import SEVERITIES, AnomalyType, MigrationContext, Severity
-from mempalace_migrator.core.errors import MigratorError
-from mempalace_migrator.detection.format_detector import SUPPORTED_VERSION_PAIRS
-
 from mempalace_migrator import __version__ as _migrator_version
+from mempalace_migrator.core.context import (SEVERITIES, AnomalyType,
+                                             MigrationContext, Severity)
+from mempalace_migrator.core.errors import MigratorError
+from mempalace_migrator.detection.format_detector import \
+    SUPPORTED_VERSION_PAIRS
 
 REPORT_SCHEMA_VERSION = 5
 TOOL_VERSION: str = _migrator_version
@@ -373,6 +374,10 @@ def _make_inconsistent_failure_dict(failure: MigratorError) -> dict[str, Any]:
                 "data": {
                     "failure_stage": failure.stage,
                     "failure_code": failure.code,
+                },
+            }
+        ],
+    }
                 },
             }
         ],
