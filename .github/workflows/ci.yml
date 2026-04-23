@@ -25,7 +25,10 @@ jobs:
                   pip install -e ".[dev]"
 
             - name: Run test suite
-              run: pytest -q -n auto
+              run: pytest -q -n auto --ignore=tests/hardening/test_performance_baseline.py
+
+            - name: Run performance baseline (serial)
+              run: pytest -q tests/hardening/test_performance_baseline.py
 
             - name: CLI entry point smoke
               run: |
