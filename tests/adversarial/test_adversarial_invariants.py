@@ -126,6 +126,11 @@ def entry_run(request, tmp_path, _entry_runs):
     palace = entry.builder(tmp_path)
     target = tmp_path / "_target" if entry.pipeline == "migrate" else None
     rc, stdout, stderr = _run_entry(entry, palace, json_output=True, target_path=target)
+    # Quiet variant — run once, cached alongside the main run.
+    quiet_target = tmp_path / "_target_quiet" if entry.pipeline == "migrate" else None
+    quiet_rc, quiet_stdout, quiet_stderr = _run_entry(
+        entry, palace, json_output=False, quiet=True, target_path=quiet_target
+    )
     record = {
         "entry": entry,
         "palace": palace,
@@ -133,6 +138,9 @@ def entry_run(request, tmp_path, _entry_runs):
         "stdout": stdout,
         "stderr": stderr,
         "report": _parse_report_or_fail(stdout, stderr, context=entry.cid) if stdout.strip() else None,
+        "quiet_returncode": quiet_rc,
+        "quiet_stdout": quiet_stdout,
+        "quiet_stderr": quiet_stderr,
     }
     _entry_runs[entry.cid] = record
     return record
@@ -221,19 +229,17 @@ def test_failure_stage_is_known(entry_run):
 # Inv. 9b — under --quiet, stdout is empty regardless of input pathology.
 
 
-@pytest.mark.parametrize("entry", CORPUS, ids=_ids(CORPUS))
-def test_quiet_suppresses_stdout(entry: CorpusEntry, tmp_path):
-    palace = entry.builder(tmp_path)
-    target = tmp_path / "_target_quiet" if entry.pipeline == "migrate" else None
-    rc, stdout, stderr = _run_entry(entry, palace, json_output=False, quiet=True, target_path=target)
+@pytest.mark.parametrize("entry_run", CORPUS, ids=_ids(CORPUS), indirect=True)
+def test_quiet_suppresses_stdout(entry_run):
+    entry = entry_run["entry"]
+    rc = entry_run["quiet_returncode"]
+    stdout = entry_run["quiet_stdout"]
+    stderr = entry_run["quiet_stderr"]
     assert stdout == "", f"[{entry.cid}] --quiet leaked output to stdout: {stdout!r}"
-    # quiet must preserve the exit code policy: still in the per-entry
-    # allowed set AND never EXIT_UNEXPECTED.
-    assert rc != EXIT_UNEXPECTED, f"[{entry.cid}] --quiet returned EXIT_UNEXPECTED (10): " f"stderr={stderr!r}"
-    assert rc in entry.allowed_exit_codes, (
-        f"[{entry.cid}] --quiet exit {rc} not in allowed set " f"{sorted(entry.allowed_exit_codes)}; stderr={stderr!r}"
+    assert rc != EXIT_UNEXPECTED, (
+        f"[{entry.cid}] --quiet returned EXIT_UNEXPECTED (10): stderr={stderr!r}"
     )
-    assert rc != EXIT_UNEXPECTED, f"[{entry.cid}] --quiet returned EXIT_UNEXPECTED (10): " f"stderr={stderr!r}"
     assert rc in entry.allowed_exit_codes, (
-        f"[{entry.cid}] --quiet exit {rc} not in allowed set " f"{sorted(entry.allowed_exit_codes)}; stderr={stderr!r}"
+        f"[{entry.cid}] --quiet exit {rc} not in allowed set "
+        f"{sorted(entry.allowed_exit_codes)}; stderr={stderr!r}"
     )

@@ -1,0 +1,47 @@
+name: CI
+
+# Note: push trigger intentionally absent — action-minute budget constraint.
+# Only pull_request against main triggers this workflow.
+# Documented deviation from tests/M15_CI_BASELINE_DESIGN.md §5.1
+# which specifies both push and pull_request triggers.
+on:
+    pull_request:
+        branches: [ main ]
+
+jobs:
+    verify:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+                  cache: pip
+
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install -e ".[dev]"
+
+            - name: Run test suite
+              run: pytest -q -n auto --ignore=tests/hardening/test_performance_baseline.py
+
+            - name: Run performance baseline (serial)
+              run: pytest -q tests/hardening/test_performance_baseline.py
+
+            - name: CLI entry point smoke
+              run: |
+                  mempalace-migrator --help
+                  mempalace-migrator analyze --help
+                  mempalace-migrator inspect --help
+                  mempalace-migrator migrate --help
+                  mempalace-migrator report --help
+
+            - name: Migration smoke
+              run: |
+                  command -v mempalace-migrator
+                  pytest -q \
+                    tests/test_migrate_e2e.py::test_migrate_happy_path_exits_zero_and_builds_target \
+                    tests/test_migrate_e2e.py::test_parity_checks_are_executed_not_skipped \
+                    -x

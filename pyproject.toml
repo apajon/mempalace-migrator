@@ -9,7 +9,7 @@ dependencies = ["click>=8.1", "chromadb>=1.5.7,<2"]
 mempalace-migrator = "mempalace_migrator.cli.main:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff", "mypy"]
+dev = ["pytest>=8.0", "pytest-xdist", "ruff", "mypy", "PyYAML"]
 
 [build-system]
 requires = ["hatchling"]

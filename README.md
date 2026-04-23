@@ -1,5 +1,7 @@
 # mempalace-migrator
 
+[![CI](https://github.com/apajon/mempalace-migrator/actions/workflows/ci.yml/badge.svg?event=pull_request)](https://github.com/apajon/mempalace-migrator/actions/workflows/ci.yml)
+
 Reconstruction-based migration tool. Reads a MemPalace stored under
 ChromaDB `0.6.x` and rebuilds it as a new palace under ChromaDB `1.x`.
 
@@ -393,7 +395,22 @@ The following are **not** in scope and are not committed to:
 
 ---
 
-## 11. Related projects
+## 11. CI
+
+Every pull request against `main` must pass the `verify` job defined in
+`.github/workflows/ci.yml` before merging. The job runs on
+`ubuntu-latest` with Python `3.12`, installs the package via
+`pip install -e ".[dev]"`, executes the full test suite with `pytest -q`,
+checks each subcommand's `--help` exit code, and runs the end-to-end
+migration smoke test. No step may proceed if a prior step fails.
+
+Branch protection on `main` requires the `verify` check to pass;
+pull requests are not mergeable while the check is absent or red,
+except by explicit admin override.
+
+---
+
+## 12. Related projects
 
 - **[mempalace-mcp-bridge](https://github.com/apajon/mempalace-mcp-bridge)**
   — the stable bridge between MemPalace and the Model Context Protocol.
