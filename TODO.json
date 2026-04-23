@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-23-m15-design",
+    "last_updated": "2026-04-23-m15-done",
     "phases": [
         {
             "id": 0,
@@ -1015,7 +1015,7 @@
             "id": 18,
             "name": "CI & Verification Baseline",
             "milestone": "M15",
-            "status": "todo",
+            "status": "done",
             "priority": "high",
             "description": "Wire the existing M1–M14 test battery (unit, adversarial, hardening, doc-surface) into GitHub Actions so that every push and every PR against main runs it on a clean Ubuntu runner against Python 3.12, fails loudly on any regression, and blocks merges to main when red. No new production code, no new pipeline stage, no new CLI flag, no new exit code, no new AnomalyType/Severity/CheckFamily/SkippedReason. Strategy fixed in tests/M15_CI_BASELINE_DESIGN.md.",
             "design_doc": "tests/M15_CI_BASELINE_DESIGN.md",
@@ -1078,8 +1078,8 @@
                 {
                     "id": "18.7",
                     "label": "self_consistency_rule",
-                    "status": "partial",
-                    "note": "18.1-18.6 are done, branch protection on main is confirmed live, and one successful CI run is recorded: https://github.com/apajon/mempalace-migrator/actions/runs/24847898031/job/72739999009?pr=1. Remaining requirement before M15_done: one deliberate-regression red-path run URL recorded (§9 item 10)."
+                    "status": "done",
+                    "note": "All §9 items satisfied. Green run: https://github.com/apajon/mempalace-migrator/actions/runs/24847898031/job/72739999009?pr=1. Red-path run: https://github.com/apajon/mempalace-migrator/actions/runs/24848463041/job/72742034403 (PR #2 closed without merging). Branch protection live. ROADMAP advanced to M15_done."
                 }
             ]
         },
@@ -1191,10 +1191,10 @@
     ],
     "current_focus": {
         "phase_ids": [
-            18
+            19
         ],
-        "label": "M15 CI & Verification Baseline — waiting for red-path evidence",
-        "reason": "Tasks 18.1–18.6 are done. Branch protection is live and a successful CI run is recorded (actions/runs/24847898031). The remaining M15 gate is 18.7 red-path evidence: record one deliberate regression run that fails under the same workflow, then advance ROADMAP to M15_done.",
-        "next_milestone": "M15"
+        "label": "M15 done — next: M16 Versioning & Release Discipline",
+        "reason": "M15 exit gate fully satisfied (§9 items 1–14). All 7 phase-18 tasks done. Green CI run and red-path proof recorded. Branch protection live on main. ROADMAP advanced to M15_done. Next milestone: M16 (phase 19 — semver, changelog, initial release).",
+        "next_milestone": "M16"
     }
 }

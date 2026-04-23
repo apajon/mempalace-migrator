@@ -531,5 +531,11 @@ Recorded evidence as of 2026-04-23:
   https://github.com/apajon/mempalace-migrator/actions/runs/24847898031/job/72739999009?pr=1
 - Branch protection on `main` is active with required status checks and
   `Require a pull request before merging` enabled.
-- Red-path evidence is still pending: one deliberate-regression run URL
-  must be recorded before marking M15 done.
+- Red-path (deliberate regression) CI run URL (PR #2, closed without merging):
+  https://github.com/apajon/mempalace-migrator/actions/runs/24848463041/job/72742034403
+  The `verify` job failed on `test_deliberate_regression` as expected,
+  confirming the gate is real. PR #2 was closed without merging.
+- `ruff` / `mypy` CI jobs were not wired in M15. Pre-existing lint/type errors
+  are not fixed by this milestone; repair is deferred to the owning phase.
+
+All §9 items 1–14 satisfied. M15 is done.
