@@ -25,7 +25,7 @@ jobs:
                   pip install -e ".[dev]"
 
             - name: Run test suite
-              run: pytest -q
+              run: pytest -q -n auto
 
             - name: CLI entry point smoke
               run: |
