@@ -378,7 +378,3 @@ def _make_inconsistent_failure_dict(failure: MigratorError) -> dict[str, Any]:
             }
         ],
     }
-                },
-            }
-        ],
-    }

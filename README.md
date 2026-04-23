@@ -1,6 +1,7 @@
 # mempalace-migrator
 
 [![CI](https://github.com/apajon/mempalace-migrator/actions/workflows/ci.yml/badge.svg?event=pull_request)](https://github.com/apajon/mempalace-migrator/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/apajon/mempalace-migrator?display_name=tag&sort=semver)](https://github.com/apajon/mempalace-migrator/releases/latest)
 
 Reconstruction-based migration tool. Reads a MemPalace stored under
 ChromaDB `0.6.x` and rebuilds it as a new palace under ChromaDB `1.x`.
@@ -407,6 +408,16 @@ migration smoke test. No step may proceed if a prior step fails.
 Branch protection on `main` requires the `verify` check to pass;
 pull requests are not mergeable while the check is absent or red,
 except by explicit admin override.
+
+---
+
+## 13. Releases
+
+All notable changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+Released versions are published as
+[GitHub Releases](https://github.com/apajon/mempalace-migrator/releases).
+This project follows Semantic Versioning 2.0.0; while the major version is `0`,
+MINOR bumps may break the public contract (CLI surface, exit codes, report schema).
 
 ---
 
