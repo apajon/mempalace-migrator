@@ -22,8 +22,10 @@ from mempalace_migrator.core.context import SEVERITIES, AnomalyType, MigrationCo
 from mempalace_migrator.core.errors import MigratorError
 from mempalace_migrator.detection.format_detector import SUPPORTED_VERSION_PAIRS
 
+from mempalace_migrator import __version__ as _migrator_version
+
 REPORT_SCHEMA_VERSION = 5
-TOOL_VERSION = "0.1.0"
+TOOL_VERSION: str = _migrator_version
 
 EXPLICITLY_NOT_CHECKED: tuple[str, ...] = (
     "sqlite_corruption_below_pragma_level",
