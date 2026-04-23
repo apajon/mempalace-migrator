@@ -627,10 +627,27 @@ These are **documented**, not **fixed**, by M16.)
 
 Evidence slots (to be filled at milestone close):
 
-- Successful CI run URL on `main` at the commit that closes M16: _TBD_.
-- `v0.1.0` tag commit SHA: _TBD_.
-- `v0.1.0` GitHub Release URL: _TBD_.
-- (Optional) `release.yml` run URL: _TBD_.
+- Successful CI run URL on `main` at the commit that closes M16:
+  _Pending — CI run triggered by push to main at `07800fd`. URL available
+  at https://github.com/apajon/mempalace-migrator/actions once complete._
+- `v0.1.0` tag commit SHA: `07800fd7afa75bb701ea904bb48687c7ead93dba`
+- `v0.1.0` GitHub Release URL: _Pending — tag pushed; Release must be
+  created manually in the GitHub UI (Path A). See §5.4 Path A checklist._
+- Release path chosen: **A (manual)**. Justification: `release.yml` (Path B)
+  is optional per §3; no additional automation is needed for a single
+  one-file release. Path A satisfies all exit-gate requirements.
+- `test_version_consistency.py` item 5 (tag ↔ changelog parity): runs
+  without skip in the local clone because `git tag --list` returns `v0.1.0`.
+  In CI shallow clones (`fetch-depth: 0` is not set in `ci.yml`), the tag
+  may be absent; the assertion will skip gracefully with
+  "git not available" only if the `git` binary is missing. A future CI
+  hardening pass should add `fetch-depth: 0` and `fetch-tags: true` to
+  ensure item 5 is enforced in CI as well as locally.
+- Pre-M16 version drift: all three hardcoded literals were `"0.1.0"` —
+  no drift existed. The derivation fix is a forward discipline measure,
+  not a correction of observed drift.
+- PyPI: not published (M19). `pip install mempalace-migrator` from PyPI
+  will fail; this is expected and documented in §6.
 
 ---
 

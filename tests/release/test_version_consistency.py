@@ -133,6 +133,17 @@ def test_changelog_versions_have_git_tags() -> None:
         pytest.skip("git not available; tag ↔ changelog parity check skipped")
 
     existing_tags: frozenset[str] = frozenset(result.stdout.splitlines())
+
+    # In a shallow or tagless clone (e.g. CI without fetch-tags: true) no tags
+    # are available.  Skip only when the clone provably has NO tags at all —
+    # this preserves the assertion in any clone that has fetched tags.
+    if not existing_tags:
+        pytest.skip(
+            "shallow clone or tagless repo — no tags available; "
+            "tag ↔ changelog parity check skipped. "
+            "Add 'fetch-depth: 0' and 'fetch-tags: true' to CI to enforce this."
+        )
+
     missing: list[str] = [v for v in versions if f"v{v}" not in existing_tags]
     assert not missing, (
         f"CHANGELOG.md lists {missing} but no corresponding git tag(s) exist. "
