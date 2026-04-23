@@ -1089,7 +1089,18 @@
             "milestone": "M16",
             "status": "todo",
             "priority": "medium",
-            "description": "Introduce traceability and reproducible releases",
+            "description": "Introduce traceability and reproducible releases. Bind every version-bearing artefact (pyproject.toml, mempalace_migrator.__version__, report['tool_version'], git tag, GitHub Release, CHANGELOG.md) to a single source of truth, and produce the project's first commit-addressable release v0.1.0. No new pipeline stage, CLI flag, exit code, AnomalyType/Severity/CheckFamily/SkippedReason, or schema_version bump. Strategy fixed in tests/M16_RELEASE_DISCIPLINE_DESIGN.md.",
+            "design_doc": "tests/M16_RELEASE_DISCIPLINE_DESIGN.md",
+            "exit_gate_checklist": "tests/M16_RELEASE_DISCIPLINE_DESIGN.md#9-exit-gate-checklist-what-m16-done-means",
+            "non_goals": [
+                "No PyPI publication (deferred to M19)",
+                "No signed tags, no SBOM, no provenance attestation (post-M17)",
+                "No --version CLI flag (deferred to M18)",
+                "No schema_version bump (stays at 5)",
+                "No auto-generated changelog / conventional-commits enforcement",
+                "No release/0.1.x maintenance branch",
+                "No weakening of existing honesty contracts"
+            ],
             "tasks": [
                 {
                     "id": "19.1",
