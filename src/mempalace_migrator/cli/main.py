@@ -29,7 +29,8 @@ import click
 
 from mempalace_migrator.core.context import MigrationContext
 from mempalace_migrator.core.errors import MigratorError
-from mempalace_migrator.core.pipeline import ANALYZE_PIPELINE, FULL_PIPELINE, MIGRATE_PIPELINE, run_pipeline
+from mempalace_migrator.core.pipeline import (ANALYZE_PIPELINE, FULL_PIPELINE,
+                                              MIGRATE_PIPELINE, run_pipeline)
 from mempalace_migrator.reporting.text_renderer import render_text
 
 # --- Exit codes -----------------------------------------------------------
@@ -99,7 +100,7 @@ Exit codes:
   6   report-builder pipeline error
   7   validation failed
   8   success but CRITICAL anomaly recorded
-  9   report file unreadable or not valid JSON
+  9   report file unreadable or not parseable as JSON
   10  unexpected error
 """
 
