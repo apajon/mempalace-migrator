@@ -411,7 +411,7 @@ except by explicit admin override.
 
 ---
 
-## 13. Releases
+## 12. Releases
 
 All notable changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 Released versions are published as
@@ -421,7 +421,7 @@ MINOR bumps may break the public contract (CLI surface, exit codes, report schem
 
 ---
 
-## 12. Related projects
+## 13. Related projects
 
 - **[mempalace-mcp-bridge](https://github.com/apajon/mempalace-mcp-bridge)**
   — the stable bridge between MemPalace and the Model Context Protocol.

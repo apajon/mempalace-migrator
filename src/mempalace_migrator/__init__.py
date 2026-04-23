@@ -12,4 +12,3 @@ try:
     __version__: str = _pkg_version("mempalace-migrator")
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0.dev0"
-    __version__ = "0.0.0.dev0"
