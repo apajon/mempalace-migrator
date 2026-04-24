@@ -31,6 +31,15 @@ Thumbs.db
 *.bak
 *.log
 
+# Local planning / trace artefacts (not versioned)
+*_DESIGN.md
+*_TRACE.md
+*_DEBUG.md
+
+# Test artifacts
+tests/artifacts/
+tests/tmp/
+
 # Environment
 .env
 .envrc
