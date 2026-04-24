@@ -17,7 +17,14 @@ from pathlib import Path
 
 import pytest
 
-from tests.adversarial.conftest import EXIT_DETECTION_FAILED, EXIT_EXTRACTION_FAILED, EXIT_OK, EXIT_UNEXPECTED, EXIT_CRITICAL_ANOMALY, run_cli
+from tests.adversarial.conftest import (
+    EXIT_CRITICAL_ANOMALY,
+    EXIT_DETECTION_FAILED,
+    EXIT_EXTRACTION_FAILED,
+    EXIT_OK,
+    EXIT_UNEXPECTED,
+    run_cli,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _README = _REPO_ROOT / "README.md"
@@ -77,9 +84,7 @@ def test_readme_cli_section_contains_quick_start() -> None:
     m = re.search(r"##\s+7\.\s+CLI reference.*?(?=##\s+8\.)", readme, re.DOTALL)
     assert m is not None, "README §7 'CLI reference' section not found"
     section = m.group(0)
-    assert "### Quick start" in section, (
-        "README §7 CLI reference does not contain a '### Quick start' subsection"
-    )
+    assert "### Quick start" in section, "README §7 CLI reference does not contain a '### Quick start' subsection"
 
 
 # ---------------------------------------------------------------------------
@@ -110,15 +115,12 @@ def test_sample_palace_analyze_succeeds(tmp_path: Path) -> None:
         text=True,
         timeout=30,
     )
-    assert result.returncode == 0, (
-        f"make_sample_palace.py failed (rc={result.returncode}):\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"make_sample_palace.py failed (rc={result.returncode}):\n{result.stderr}"
 
     cli_result = run_cli(["analyze", str(tmp_path / "sample")])
     forbidden = {EXIT_DETECTION_FAILED, EXIT_EXTRACTION_FAILED, EXIT_UNEXPECTED}
     assert cli_result.returncode not in forbidden, (
-        f"analyze exited {cli_result.returncode} (forbidden: {forbidden})\n"
-        f"stderr: {cli_result.stderr}"
+        f"analyze exited {cli_result.returncode} (forbidden: {forbidden})\n" f"stderr: {cli_result.stderr}"
     )
 
 
@@ -139,9 +141,7 @@ def test_sample_palace_migrate_succeeds(tmp_path: Path) -> None:
         text=True,
         timeout=30,
     )
-    assert result.returncode == 0, (
-        f"make_sample_palace.py failed (rc={result.returncode}):\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"make_sample_palace.py failed (rc={result.returncode}):\n{result.stderr}"
 
     from tests.adversarial.conftest import run_migrate_cli
 

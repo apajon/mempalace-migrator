@@ -52,7 +52,8 @@ def build(dest: Path) -> None:
 
     db_path = dest / SQLITE_FILENAME
     with sqlite3.connect(str(db_path)) as conn:
-        conn.executescript("""
+        conn.executescript(
+            """
             CREATE TABLE collections (
                 id   INTEGER PRIMARY KEY,
                 name TEXT
@@ -70,7 +71,8 @@ def build(dest: Path) -> None:
                 float_value  REAL,
                 bool_value   INTEGER
             );
-        """)
+        """
+        )
         conn.execute(
             "INSERT INTO collections (id, name) VALUES (1, ?)",
             (COLLECTION_NAME,),

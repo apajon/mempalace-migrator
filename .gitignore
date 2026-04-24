@@ -61,3 +61,4 @@ mempalace.yaml
 # Extra virtual environments (investigation / experimentation)
 .venv-*/
 
+tests/docs/AUDIT.md

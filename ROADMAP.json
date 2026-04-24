@@ -411,12 +411,12 @@
         "M19"
     ],
     "current_position": {
-        "milestone": "M18_done",
-        "next_target": "M19",
-        "next_target_reason": "M18 UX CLI & Developer Experience complete. All five tasks (21.1 cli_help_cleanup, 21.2 error_messages, 21.3 logging_cleanup/stderr-contract-doc, 21.4 example_workflow_doc, 21.5 sample_dataset) implemented and green. Design: tests/M18_UX_CLI_DESIGN.md. Changes: cli/main.py report docstring fixed to 'any subcommand'; rollback stderr notice added when raised.stage == 'reconstruct'. README: Quick start section in \u00a77 using `python -m mempalace_migrator.cli.main`, scripting/piping contract in \u00a78. examples/make_sample_palace.py added (stdlib-only, no package imports) to build a minimal chroma_0_6 sample palace. tests/test_ux_cli.py: 6 tests (21.1-a, 21.4-a, 21.4-b, 21.5-a, 21.5-b, 21.5-c) all green. Full fast suite: 860 passed, 1 skipped. No new exit code, AnomalyType, Severity, CheckFamily, SkippedReason, CLI flag, or schema_version change. Next: M19 (packaging).",
-        "description": "M18 UX CLI & Developer Experience complete. Non-behavioural polish only: help-text fix on `report`, rollback stderr notice on `migrate` reconstruct failure, README Quick start + scripting contract, examples/make_sample_palace.py sample-dataset generator script. Six new tests in tests/test_ux_cli.py. Logging-discipline AST walk still green (the new click.echo is inside cli/main.py; the sample script is outside src/mempalace_migrator/). TODO.json bookkeeping corrected in the same change: phase 18 (M15 CI Baseline) marked done, phase 21 (M18) marked done, current_focus advanced to phase 21 with next_milestone M19.",
+        "milestone": "M19_done",
+        "next_target": null,
+        "next_target_reason": "M19 is the last declared milestone in the roadmap. No further milestones are defined. See ROADMAP.json::non_goals and M19_PACKAGING_DESIGN.md \u00a710 for what explicitly remains out of scope (PyPI publication, release automation, reproducible builds, multi-platform smoke, Python version matrix, conda/apt/homebrew, signed artefacts, SBOM).",
+        "description": "M19 Packaging & Distribution complete (2026-04-24). pyproject.toml [project] extended with readme, license, authors, keywords, classifiers (MIT/Alpha/Developers/OS-Independent/Python 3.12/Database), and [project.urls] (Homepage/Source/Issues/Changelog). [tool.hatch.build.targets.sdist] added with explicit include allowlist. build>=1.0 + hatchling added to [project.optional-dependencies].dev. tests/release/test_packaging.py created: 7 @pytest.mark.slow assertions covering build cleanliness, wheel content hygiene, METADATA completeness + exact Requires-Dist (click + chromadb only), isolated-venv install, console-script --help, detached-install version == TOOL_VERSION (PYTHONPATH stripped, neutral cwd), and migrate happy-path end-to-end via the installed entry point \u2014 all 7 green in ~28 s. All 22 tests in tests/release/ + tests/ci/ green. No new pipeline stage, CLI flag, exit code, AnomalyType, Severity, CheckFamily, SkippedReason, or schema_version bump. All M1\u2013M18 tests remain green without modification.",
         "risk_level": "low",
-        "reason": "M18 exit gate satisfied per tests/M18_UX_CLI_DESIGN.md \u00a75. All six tests in tests/test_ux_cli.py pass. Full fast suite (860 tests) remains green. No production behaviour change: only a single added click.echo line in cli/main.py (rollback notice) and a docstring wording change on `report`. Prior milestones preserved.",
+        "reason": "M19 exit gate \u00a77 items 1\u201311 all satisfied: pyproject.toml metadata complete (\u00a77.1), build dev dep added (\u00a77.2), sdist allowlist present (\u00a77.3), 7 packaging test assertions green (\u00a77.4), CI workflow surface tests still green (\u00a77.5), isolated-venv install produces working CLI (\u00a77.6), python -m build emits zero WARNING/ERROR (\u00a77.7), Requires-Dist exactly click+chromadb (\u00a77.8), importlib.metadata version == TOOL_VERSION == pyproject.toml::version (\u00a77.9), no new contract surface (\u00a77.10), all prior tests green (\u00a77.11).",
         "completed_milestones": [
             "M1",
             "M2",
@@ -435,7 +435,8 @@
             "M15",
             "M16",
             "M17",
-            "M18"
+            "M18",
+            "M19"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",

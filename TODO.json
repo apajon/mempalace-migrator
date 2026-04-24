@@ -1,6 +1,6 @@
 {
     "project": "mempalace-migrator",
-    "last_updated": "2026-04-23-m16-done",
+    "last_updated": "2026-04-24-m19-done",
     "phases": [
         {
             "id": 0,
@@ -1223,14 +1223,77 @@
                     "status": "done"
                 }
             ]
+        },
+        {
+            "id": 22,
+            "name": "Packaging & Distribution",
+            "milestone": "M19",
+            "status": "done",
+            "priority": "high",
+            "description": "Make the tool installable and distributable as a Python wheel. Prove that `python -m build` produces a minimal, correct wheel+sdist, that installing the wheel into a fresh venv yields a working `mempalace-migrator` console entry point with no source tree on sys.path, and that runtime dependencies are exactly `click` and `chromadb`. No new pipeline stage, CLI flag, exit code, AnomalyType/Severity/CheckFamily/SkippedReason, or schema_version bump. No PyPI publication (explicit non-goal). Strategy fixed in tests/M19_PACKAGING_DESIGN.md.",
+            "design_doc": "tests/M19_PACKAGING_DESIGN.md",
+            "exit_gate_checklist": "tests/M19_PACKAGING_DESIGN.md#7-exit-gate-checklist--what-m19-done-means",
+            "depends_on": [
+                21
+            ],
+            "non_goals": [
+                "No PyPI publication (pip install mempalace-migrator from the public index is not in scope)",
+                "No tag-triggered release automation (a future build-only release.yml is permitted but optional; twine upload is prohibited by M19)",
+                "No new pipeline stage, CLI subcommand, flag, exit code, AnomalyType, Severity, CheckFamily, SkippedReason, or schema_version bump",
+                "No new runtime dependency (runtime deps stay exactly click + chromadb)",
+                "No reproducible-build (SOURCE_DATE_EPOCH) guarantee",
+                "No multi-OS / multi-Python-version packaging smoke (Ubuntu + 3.12 only, matching CI)",
+                "No conda / apt / homebrew / sigstore / SBOM coverage",
+                "No weakening of M8 logging discipline or M7/M14 forbidden-vocabulary guards"
+            ],
+            "tasks": [
+                {
+                    "id": "22.1",
+                    "label": "define_python_package",
+                    "status": "done",
+                    "design_ref": "tests/M19_PACKAGING_DESIGN.md#51-pyprojecttoml-metadata-completeness",
+                    "deliverable": "Add readme, license, authors, keywords, classifiers, and [project.urls] keys to pyproject.toml [project] table. License classifier verified against LICENSE text before commit. No forbidden vocabulary in any string value.",
+                    "note": "pyproject.toml [project] extended with readme='README.md', license={file='LICENSE'}, authors=[{name='Adrien PAJON'}], keywords=['chromadb','migration','mempalace'], 7 classifiers (Development Status 3-Alpha, Intended Audience Developers, MIT License, OS Independent, Python 3/3.12, Topic Database), [project.urls] with Homepage/Source/Issues/Changelog. MIT classifier confirmed against LICENSE text."
+                },
+                {
+                    "id": "22.2",
+                    "label": "add_entry_point_cli",
+                    "status": "done",
+                    "design_ref": "tests/M19_PACKAGING_DESIGN.md#53-packaging-smoke-test",
+                    "deliverable": "No production code change (entry point already declared). Test assertion that an isolated-venv install of the built wheel exposes a working `mempalace-migrator --help` listing the four subcommands analyze/inspect/migrate/report (assertion 5 of tests/release/test_packaging.py).",
+                    "note": "Covered by test_packaging.py::test_console_script_help — green."
+                },
+                {
+                    "id": "22.3",
+                    "label": "clean_dependencies",
+                    "status": "done",
+                    "design_ref": "tests/M19_PACKAGING_DESIGN.md#54-dev-extras-additions",
+                    "deliverable": "Static audit of src/mempalace_migrator/ for non-stdlib imports; confirm runtime surface is exactly click + chromadb. Add `build>=1.0` to [project.optional-dependencies].dev. Packaging test asserts Requires-Dist in installed METADATA is exactly these two lines (assertion 3).",
+                    "note": "AST grep over src/ found zero non-stdlib non-click non-chromadb imports. `build>=1.0` and `hatchling` added to dev extras. Wheel METADATA Requires-Dist assertion (filtering extra== entries) is green."
+                },
+                {
+                    "id": "22.4",
+                    "label": "sdist_hygiene",
+                    "status": "done",
+                    "design_ref": "tests/M19_PACKAGING_DESIGN.md#52-wheel-content-hygiene-hatchling-targets",
+                    "deliverable": "Add [tool.hatch.build.targets.sdist] with an explicit include allowlist (src/**, pyproject.toml, README.md, LICENSE, CHANGELOG.md, tests/**, examples/**). Packaging test inspects the wheel and rejects tests/, examples/, .venv/, __pycache__/, .pytest_cache/, .mypy_cache/, .ruff_cache/, .github/, and any *_DESIGN.md path (assertion 2).",
+                    "note": "[tool.hatch.build.targets.sdist] added with explicit include list. test_wheel_contents_are_minimal passes — no forbidden paths in wheel top-level."
+                },
+                {
+                    "id": "22.5",
+                    "label": "test_installation_flow",
+                    "status": "done",
+                    "design_ref": "tests/M19_PACKAGING_DESIGN.md#53-packaging-smoke-test",
+                    "deliverable": "tests/release/test_packaging.py implementing the seven assertions in design §5.3: build succeeds clean, wheel contents minimal, METADATA complete + Requires-Dist exact, isolated venv install succeeds, console script resolves, detached-install version read matches TOOL_VERSION, and migrate happy path on the M18 sample palace exits 0 from the installed entry point. Marked @pytest.mark.slow. POSIX-only in CI; Windows path selected by sys.platform but not asserted green.",
+                    "note": "tests/release/test_packaging.py created. All 7 assertions green (7 passed in ~28s). Detached-install version check uses PYTHONPATH='' and neutral cwd. Happy-path smoke uses importlib.util to call make_sample_palace.build() directly (avoids sys.argv/sys.exit issue from runpy)."
+                }
+            ]
         }
     ],
     "current_focus": {
-        "phase_ids": [
-            21
-        ],
-        "label": "M18 UX CLI & Developer Experience \u2014 done",
-        "reason": "M18 exit gate satisfied. All 21.1\u201321.5 tasks complete: report help fixed, rollback stderr message added, README Quick start + scripting contract added, examples/make_sample_palace.py created. 6 new tests in tests/test_ux_cli.py all green. Next milestone: M19 (packaging).",
-        "next_milestone": "M19"
+        "phase_ids": [],
+        "label": "M19 Packaging & Distribution — done",
+        "reason": "M19 exit gate satisfied (phase 22 done, 2026-04-24). pyproject.toml metadata completed (readme, license, authors, keywords, classifiers, [project.urls]). [tool.hatch.build.targets.sdist] allowlist added. build>=1.0 + hatchling added to dev extras. tests/release/test_packaging.py created with 7 @pytest.mark.slow assertions (build clean, wheel contents minimal, METADATA+Requires-Dist exact, isolated-venv install, console-script --help, detached-install version == TOOL_VERSION, migrate happy-path via installed entry point). All 22 tests in tests/release/ + tests/ci/ green. No new pipeline stage, CLI flag, exit code, AnomalyType, Severity, CheckFamily, SkippedReason, or schema_version bump. PyPI publication remains an explicit non-goal.",
+        "next_milestone": null
     }
 }
