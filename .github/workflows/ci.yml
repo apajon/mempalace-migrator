@@ -24,6 +24,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Pre-warm Chroma ONNX model cache
+        run: |
+          python - <<'EOF'
+          import chromadb, tempfile
+          with tempfile.TemporaryDirectory() as d:
+              client = chromadb.PersistentClient(path=d)
+              col = client.create_collection("warmup")
+              col.add(documents=["warmup"], ids=["w1"])
+          EOF
+
       - name: Run test suite
         run: pytest -q -n auto --ignore=tests/hardening/test_performance_baseline.py
 

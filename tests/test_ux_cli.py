@@ -48,10 +48,12 @@ def test_report_help_mentions_any_subcommand() -> None:
         (line.strip() for line in help_text.splitlines() if line.strip()),
         "",
     )
-    assert "any subcommand" in first_line, f"report first help line does not mention 'any subcommand': {first_line!r}"
-    assert (
-        "analyze or inspect" not in first_line
-    ), f"report first help line still says 'analyze or inspect': {first_line!r}"
+    assert "any subcommand" in first_line, (
+        f"report first help line does not mention 'any subcommand': {first_line!r}"
+    )
+    assert "analyze or inspect" not in first_line, (
+        f"report first help line still says 'analyze or inspect': {first_line!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
