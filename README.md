@@ -230,6 +230,26 @@ No pipeline is executed. Reads one file; writes nothing.
 
 ## 7. CLI reference
 
+### Quick start
+
+These examples use `python -m mempalace_migrator.cli.main`. After
+installation (see §6), this becomes `.venv/bin/mempalace-migrator`.
+
+```bash
+# 1. Check whether your palace is readable (read-only, no writes):
+python -m mempalace_migrator.cli.main analyze /path/to/source_palace
+
+# 2. Dry-run: detect, extract, transform, validate — no target written:
+python -m mempalace_migrator.cli.main inspect /path/to/source_palace
+
+# 3. Migrate: full pipeline, write a new palace:
+python -m mempalace_migrator.cli.main migrate /path/to/source_palace --target /path/to/new_palace
+
+# 4. Save and re-render the report:
+python -m mempalace_migrator.cli.main migrate /path/to/source_palace --target /path/to/new_palace --json-output > report.json
+python -m mempalace_migrator.cli.main report report.json
+```
+
 ### `analyze SOURCE`
 
 Detect format and extract records. Read-only; no writes.
@@ -282,7 +302,7 @@ the rollback mechanism.
 
 ### `report REPORT_FILE`
 
-Re-render a JSON report produced by analyze or inspect as text.
+Re-render a JSON report produced by any subcommand as text.
 
 **Reads:** REPORT_FILE (a JSON file produced by a previous `analyze`,
 `inspect`, or `migrate` run with `--json-output`, or saved manually).
@@ -348,6 +368,30 @@ trusted for any purpose.
 | `8`  | Outcome is `success` but at least one CRITICAL anomaly was recorded ("silent failure" guard) |
 | `9`  | `report` subcommand: the specified file could not be read or is not parseable as JSON |
 | `10` | Unexpected or unrecognised failure; use `--debug` to surface the traceback |
+
+### Scripting and piping
+
+**stdout** contains only the text or JSON report. Capture it with shell
+redirection:
+
+```bash
+python -m mempalace_migrator.cli.main migrate SOURCE --target TARGET --json-output > report.json
+```
+
+**stderr** contains all error banners and pipeline messages. They follow
+the pattern `[migrator:<run_id>] [<stage>] ERROR: <summary>`.
+
+To separate them in a script:
+
+```bash
+python -m mempalace_migrator.cli.main analyze SOURCE --json-output \
+  > report.json \
+  2> errors.txt
+echo "exit: $?"
+```
+
+Exit codes are stable across releases and safe to match on in scripts.
+See the exit-code table above.
 
 ---
 
