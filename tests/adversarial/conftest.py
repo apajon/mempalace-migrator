@@ -29,10 +29,11 @@ from pathlib import Path
 
 import pytest
 
-from mempalace_migrator.detection.format_detector import (MANIFEST_FILENAME,
-                                                          SQLITE_FILENAME)
-from mempalace_migrator.extraction.chroma_06_reader import \
-    EXPECTED_COLLECTION_NAME
+from mempalace_migrator.detection.format_detector import (
+    MANIFEST_FILENAME,
+    SQLITE_FILENAME,
+)
+from mempalace_migrator.extraction.chroma_06_reader import EXPECTED_COLLECTION_NAME
 
 # ---------------------------------------------------------------------------
 # Exit codes (re-exported for clarity in adversarial tests)
@@ -500,6 +501,7 @@ def build_typed_marker_present(tmp_path: Path) -> Path:
 
 
 def build_manifest_invalid_json(tmp_path: Path) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / MANIFEST_FILENAME).write_text("{not json", encoding="utf-8")
     build_minimal_valid_chroma_06_inplace_db(tmp_path)
     return tmp_path
@@ -520,6 +522,7 @@ def build_unsupported_version(tmp_path: Path) -> Path:
 
 def build_empty_dir(tmp_path: Path) -> Path:
     """No manifest, no SQLite → detection floor."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
     return tmp_path
 
 
@@ -823,6 +826,19 @@ CORPUS: tuple[CorpusEntry, ...] = (
         "15.10",
         extra_tags=("write_path",),
     ),
+    # 20.1 — M17 trust & safety: source fixtures used by 20.2 / 20.3 / 20.5.
+    # In the invariant sweep these all run cleanly (valid source → exit 0).
+    # Failure injection and idempotence / parity-trust assertions are in the
+    # dedicated 20.x test files; here we only register the source fixture so
+    # that Inv. 1–9 apply to the plain (uninjected) run.
+    CorpusEntry(
+        "m17_valid_source_for_injection",
+        build_minimal_valid_chroma_06,
+        "migrate",
+        frozenset({EXIT_OK}),
+        "20.1",
+        extra_tags=("m17", "write_path"),
+    ),
 )
 
 
@@ -864,9 +880,6 @@ def adversarial_palace(request, tmp_path: Path) -> tuple[CorpusEntry, Path]:
     """
     entry: CorpusEntry = request.param if hasattr(request, "param") else None
     if entry is None:
-        raise RuntimeError("adversarial_palace must be parametrized with a CorpusEntry")
-    palace = entry.builder(tmp_path)
-    return entry, palace
         raise RuntimeError("adversarial_palace must be parametrized with a CorpusEntry")
     palace = entry.builder(tmp_path)
     return entry, palace

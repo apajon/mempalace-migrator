@@ -13,7 +13,10 @@ import re
 from typing import Any
 
 from mempalace_migrator.core.context import AnomalyType
-from mempalace_migrator.reporting.report_builder import REPORT_SCHEMA_VERSION, REPORT_TOP_LEVEL_KEYS
+from mempalace_migrator.reporting.report_builder import (
+    REPORT_SCHEMA_VERSION,
+    REPORT_TOP_LEVEL_KEYS,
+)
 
 # ---------------------------------------------------------------------------
 # Constants re-exported for convenience
@@ -123,8 +126,28 @@ def check_failure_stage_is_known(cid: str, report: dict[str, Any] | None) -> Non
     ), f"[{cid}] failure.stage={failure.get('stage')!r} not in {_KNOWN_STAGES}"
 
 
+def check_failure_has_anomaly_at_stage(cid: str, report: dict[str, Any] | None, rc: int) -> None:
+    """Inv. 9 — non-zero exit ⇒ ≥1 anomaly at report.failure.stage."""
+    if rc == EXIT_OK or report is None:
+        return
+    failure = report.get("failure")
+    if failure is None:
+        # A non-zero exit without a failure block is already caught by Inv. 3.
+        return
+    stage = failure.get("stage", "")
+    if not stage:
+        return
+    anomalies = report.get("anomalies") or []
+    at_stage = [a for a in anomalies if (a.get("location") or {}).get("stage") == stage]
+    assert at_stage, (
+        f"[{cid}] exit {rc} with failure.stage={stage!r} "
+        f"but no anomaly has location.stage=={stage!r}. "
+        f"anomaly_types={[a.get('type') for a in anomalies]}"
+    )
+
+
 def check_all_structural(cid: str, report: dict[str, Any] | None, rc: int, stderr: str) -> None:
-    """Run Inv. 2–8 in sequence.  Stops at the first failure."""
+    """Run Inv. 2–9 in sequence.  Stops at the first failure."""
     check_no_traceback_on_stderr(cid, stderr)
     check_no_silent_critical(cid, report, rc)
     check_schema_stability(cid, report)
@@ -132,6 +155,4 @@ def check_all_structural(cid: str, report: dict[str, Any] | None, rc: int, stder
     check_anomaly_well_formedness(cid, report)
     check_no_forbidden_vocabulary(cid, report)
     check_failure_stage_is_known(cid, report)
-    check_anomaly_well_formedness(cid, report)
-    check_no_forbidden_vocabulary(cid, report)
-    check_failure_stage_is_known(cid, report)
+    check_failure_has_anomaly_at_stage(cid, report, rc)
