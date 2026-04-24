@@ -206,6 +206,12 @@ def migrate(click_ctx: click.Context, source: Path, target: Path) -> None:
         if obj["debug"]:
             raise
 
+    if raised is not None and raised.stage == "reconstruct":
+        click.echo(
+            f"[migrator:{ctx.short_run_id}] partial target cleaned up (rollback attempted)",
+            err=True,
+        )
+
     if not obj["quiet"]:
         _emit_report(ctx, obj["json_output"])
 
@@ -219,7 +225,7 @@ def migrate(click_ctx: click.Context, source: Path, target: Path) -> None:
 )
 @click.pass_context
 def report_cmd(click_ctx: click.Context, report_file: Path) -> None:
-    """Re-render a JSON report produced by analyze or inspect as text.
+    """Re-render a JSON report produced by any subcommand as text.
 
     No pipeline execution. Pure formatting. Useful for piping or re-inspection.
     """
