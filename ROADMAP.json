@@ -411,12 +411,12 @@
         "M19"
     ],
     "current_position": {
-        "milestone": "M16_done",
-        "next_target": "M16",
-        "next_target_reason": "M15 complete. M16 design fixed in tests/M16_RELEASE_DISCIPLINE_DESIGN.md. Scope: single source of truth for version (pyproject.toml \u2192 importlib.metadata derivation in __init__.py and reporting.report_builder.TOOL_VERSION), CHANGELOG.md in Keep-a-Changelog 1.1.0 format summarising M1\u2013M15, annotated tag v0.1.0 on a green-CI commit, GitHub Release page with body = CHANGELOG section, Release badge in README, tests/release/test_version_consistency.py enforcing the 8 assertions of \u00a77.1. Non-goals: PyPI publish (M19), signed tags/SBOM (post-M17), --version flag (M18), schema_version bump.",
-        "description": "M14 exit gate satisfied. README.md completely rewritten: all 11 EXIT_* codes documented, all 20 REPORT_TOP_LEVEL_KEYS documented, \u00a73 limitations rewritten with all 6 caveats, \u00a77 CLI reference section added, \u00a710 Guarantees section added. Forbidden vocabulary (correct/verified/guaranteed/valid) removed from README.md and cli/main.py epilog. ARCHITECTURE.md verified clean. tests/docs/AUDIT.md created (full drift table, all drift-doc-wrong entries resolved). tests/docs/test_doc_surface.py created with 6 passing assertions (exit-code parity, report-key parity, forbidden-vocabulary scan \u00d72, version-pin consistency, CLI help consistency). 17.7 self-consistency rule confirmed: ROADMAP advanced only after 17.1\u201317.6 all done.",
+        "milestone": "M17_done",
+        "next_target": "M18",
+        "next_target_reason": "M17 exit gate satisfied. All four M17 criteria confirmed: (1) every corpus entry with non-zero exit has \u22651 anomaly at failure.stage (20.4 \u2014 test_anomaly_completeness.py, 40 tests pass); (2) rollback leaves no partial target for all three injection points \u2014 client construction, batch-0, post-batch manifest write (20.2 \u2014 test_partial_migration_safety.py); (3) two fresh-target runs produce identical extract_report_signature; re-run against existing target exits 5 with TARGET_PATH_NOT_EMPTY and leaves target bytes unchanged (20.3 \u2014 test_migrate_idempotence.py); (4) parity family cannot be coerced to 'passed' on a target mutated by drop_one_row / swap_document / rewrite_metadata (20.5 \u2014 test_validation_trust.py). No new exit code, AnomalyType, Severity, CheckFamily, SkippedReason, CLI flag, or schema_version change introduced. M15 bookkeeping drift resolved (see description). Next: M18 UX CLI & Developer Experience (phase 21).",
+        "description": "M17 exit gate satisfied. Bookkeeping drift resolved: M15 (Release Discipline) was completed before M16 but was omitted from completed_milestones in the prior ROADMAP update \u2014 added now alongside M17. Evidence: TODO.json phase-19 tasks 19.1\u201319.5 all status:'done', tests/release/test_version_consistency.py green, CHANGELOG.md and README badge present. M17 adds 40 new tests across four files (test_anomaly_completeness.py, test_partial_migration_safety.py, test_migrate_idempotence.py, test_validation_trust.py) plus check_failure_has_anomaly_at_stage in _invariants.py and one CORPUS entry (m17_valid_source_for_injection). Two builder bugs fixed in conftest.py (build_empty_dir, build_manifest_invalid_json missing mkdir) and a monkeypatch target fixed (reconstructor module, not _manifest module). No production code touched.",
         "risk_level": "low",
-        "reason": "M13 exit gate (M13_E2E_USABILITY_DESIGN.md \u00a79) conditions all met: (1) migrate exits 0 on minimal valid chroma_0_6 fixture, manifest written, all 5 stages executed, imported_count==3; (2) all 4 required parity checks executed, none in checks_not_performed; (3) confidence_band HIGH, no forbidden vocabulary, no hidden CRITICAL anomaly; (4) two fresh-target runs produce identical extract_report_signature; (5) source bytes and mtime_ns unchanged after full command; (6) reconstructed target reopens via chromadb.PersistentClient in fresh subprocess, count() matches imported_count; (7) 16.7 self-consistency rule satisfied \u2014 ROADMAP advanced only now that 16.1\u201316.6 are all done.",
+        "reason": "M16 exit gate (tests/M16_RELEASE_DISCIPLINE_DESIGN.md \u00a77.1) conditions met: version single-source-of-truth in pyproject.toml; CHANGELOG.md in Keep-a-Changelog 1.1.0 format; annotated tag v0.1.0; GitHub Release page; Release badge in README; tests/release/test_version_consistency.py green.",
         "completed_milestones": [
             "M1",
             "M2",
@@ -432,7 +432,9 @@
             "M12",
             "M13",
             "M14",
-            "M16"
+            "M15",
+            "M16",
+            "M17"
         ],
         "caveats": [
             "Detection still uses its own pre-M3 Evidence/Contradiction model; pipeline gate failures are mirrored into ctx.anomalies as critical anomalies but the two structured models are not unified.",
@@ -454,5 +456,5 @@
         "Always prefer explicit over implicit behavior",
         "Surface uncertainty at every stage"
     ],
-    "last_updated": "2026-04-23"
+    "last_updated": "2026-04-24"
 }

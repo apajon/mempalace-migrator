@@ -1133,34 +1133,57 @@
             "id": 20,
             "name": "Trust & Safety Hardening",
             "milestone": "M17",
-            "status": "todo",
+            "status": "done",
             "priority": "critical",
-            "description": "Prove migration reliability under edge conditions",
+            "description": "Prove migration reliability under edge conditions. No new pipeline stage, CLI flag, exit code, AnomalyType/Severity/CheckFamily/SkippedReason, or schema_version bump. Reuses the M7 adversarial corpus and the M8 signature helper; extends tests/adversarial/_invariants.py with exactly one new wrapper (check_failure_has_anomaly_at_stage, Inv. 9). Strategy fixed in tests/M17_TRUST_SAFETY_DESIGN.md.",
+            "design_doc": "tests/M17_TRUST_SAFETY_DESIGN.md",
+            "exit_gate_checklist": "tests/M17_TRUST_SAFETY_DESIGN.md#9-exit-gate-checklist--what-m17-done-means",
+            "implementation_status": "done \u2014 all 20.1\u201320.5 tests implemented and passing. M15 \u2194 M16 bookkeeping drift resolved (see ROADMAP current_position.description). No production code touched; no new exit codes, AnomalyTypes, or schema changes.",
+            "non_goals": [
+                "No new pipeline stage, subcommand, CLI flag, or positional argument",
+                "No new exit code (pinned set {0..10} stays frozen)",
+                "No new AnomalyType / Severity / CheckFamily / SkippedReason value",
+                "No change to report schema (schema_version stays at 5)",
+                "No production print/logging/sys.std*.write (M8 AST walk still authoritative)",
+                "No retrieval-parity, usage-scenario-parity, or MCP-runtime validation (ROADMAP non_goals)",
+                "No KeyboardInterrupt / SIGTERM coverage, no concurrent-run coverage, no lockfile introduction",
+                "No weakening of existing honesty contracts (M7 Inv. bodies unchanged, M8 tolerances unchanged, M12 rollback contract re-asserted not relaxed)"
+            ],
             "tasks": [
                 {
                     "id": "20.1",
                     "label": "adversarial_inputs",
-                    "status": "todo"
+                    "status": "done",
+                    "design_doc": "tests/M17_TRUST_SAFETY_DESIGN.md",
+                    "deliverable": "CORPUS extension in tests/adversarial/conftest.py + parametrisation of tests/adversarial/test_adversarial_invariants.py over the 20.2/20.3/20.5 builder outputs; Inv. 1-9 hold for every entry."
                 },
                 {
                     "id": "20.2",
                     "label": "partial_migration_safety",
-                    "status": "todo"
+                    "status": "done",
+                    "design_doc": "tests/M17_TRUST_SAFETY_DESIGN.md",
+                    "deliverable": "tests/adversarial/test_partial_migration_safety.py covering three injection points (client/collection construction, batch 0, post-batch manifest write) in addition to M12 \u00a715.2 batch-N regression guard. Each case: rc==5, failure.stage=='reconstruct', Path(target).exists() is False, source bytes+mtime_ns unchanged."
                 },
                 {
                     "id": "20.3",
                     "label": "idempotence_check",
-                    "status": "todo"
+                    "status": "done",
+                    "design_doc": "tests/M17_TRUST_SAFETY_DESIGN.md",
+                    "deliverable": "tests/adversarial/test_migrate_idempotence.py covering (a) two fresh targets same source \u2192 identical extract_report_signature, (b) re-run against used target \u2192 rc==5 with TARGET_PATH_NOT_EMPTY and target bytes stable, (c) mid-batch failure then clean re-run at same path \u2192 rc==0 with signature equal to (a)."
                 },
                 {
                     "id": "20.4",
                     "label": "anomaly_completeness",
-                    "status": "todo"
+                    "status": "done",
+                    "design_doc": "tests/M17_TRUST_SAFETY_DESIGN.md",
+                    "deliverable": "tests/adversarial/test_anomaly_completeness.py asserting \u2200 corpus entry with rc!=0 has \u22651 anomaly at report.failure.stage; implemented via new helper check_failure_has_anomaly_at_stage added to tests/adversarial/_invariants.py and wired into check_all_structural."
                 },
                 {
                     "id": "20.5",
                     "label": "validation_trust",
-                    "status": "todo"
+                    "status": "done",
+                    "design_doc": "tests/M17_TRUST_SAFETY_DESIGN.md",
+                    "deliverable": "tests/adversarial/test_validation_trust.py covering three mutation classes applied post-reconstruct via the public chromadb client (drop_one_row, swap_document, rewrite_metadata); each must surface the pre-registered parity anomaly type and leave zero parity checks returning 'passed'. Any gap is a validation/parity.py defect, not an M17 deliverable."
                 }
             ]
         },
